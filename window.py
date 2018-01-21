@@ -8,7 +8,7 @@ import pyaudio, time, wave
 import numpy as np
 import matplotlib.pyplot as plt
 
-qtCreatorFile = "qtgui/mainwindow.ui"  # Путь к UI файлу
+qtCreatorFile = "./mainwindow.ui"  # Путь к UI файлу
 
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
 
@@ -21,31 +21,36 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.setAudioParams()
         self.btnRecord.clicked.connect(self.btnRecordClicked)
         self.btnPlay.clicked.connect(self.btnPlayClicked)
+        self.boxDuration.valueChanged.connect(self.setAudioParams)
 
     def setAudioParams(self):
         self.audioParams = {
-            'CHUNK' : 1000,
-            'FORMAT' : pyaudio.paInt16,
+            'CHUNK' : 1024,
+            'FORMAT' : pyaudio.paInt32,
             'CHANNELS' : 1,
-            'RATE' : 40000,
-            'WAVE_OUTPUT_FILENAME' : "output.wav"}
+            'RATE' : 8096,
+            'WAVE_OUTPUT_FILENAME' : "output.wav",
+            'DURATION' : self.boxDuration.value()}
 
     def btnRecordClicked(self):
-        seconds = self.boxDuration.value()
-        self.rawData = record(seconds, self.audioParams)
+        self.rawData = record(self.audioParams)
+
+        self.btnPlay.setEnabled(True)
         self.rawAmplitudeGraph = plot(self.rawData)
-        self.lblRawSound.setPixmap(self.rawAmplitudeGraph)
+        self.lblRawAmplitude.setPixmap(self.rawAmplitudeGraph)
+        self.lblRawSpectrum.setPixmap(
+            calcSpectrum(self.rawData, self.audioParams['RATE']))
 
     def btnPlayClicked(self):
         play(self.rawData, self.audioParams)
 
-def record(duration, audioParams):
+def record(audioParams):
     chunk = audioParams['CHUNK']
     format = audioParams['FORMAT']
     channels = audioParams['CHANNELS']
     rate = audioParams['RATE']
     wave_out_filename = audioParams['WAVE_OUTPUT_FILENAME']
-    audioParams['DURATION'] = duration
+    duration = audioParams['DURATION']
 
     print("2...")
     time.sleep(1)
@@ -76,7 +81,7 @@ def record(duration, audioParams):
 
     b = []
     for f in frames:
-        b.append(np.frombuffer(f, dtype=np.int16))
+        b.append(np.frombuffer(f, dtype=np.int32))
 
     wf = wave.open(wave_out_filename, 'wb')
     wf.setnchannels(channels)
@@ -92,7 +97,6 @@ def play(data, audioParams):
     format = audioParams['FORMAT']
     channels = audioParams['CHANNELS']
     rate = audioParams['RATE']
-    duration = audioParams['DURATION']
 
     p = pyaudio.PyAudio()
 
@@ -102,17 +106,33 @@ def play(data, audioParams):
                     output=True,
                     frames_per_buffer=chunk)
 
-    stream.write(data, rate * duration)
+    stream.write(data, data.size)
 
     stream.stop_stream()
     stream.close()
     p.terminate()
 
 def plot(data):
-    plt.figure(figsize=[5, 0.6])
-    # todo настроить оси
-    plt.plot(data)
-    plt.savefig('wave.png', fmt='png')
+    norm = data / np.linalg.norm(data, np.inf)
+    fig = plt.figure(figsize=[5, 0.8], frameon=False)
+    ax = fig.add_subplot(111)
+    ax.plot(norm)
+
+    canvas = fig.canvas
+    canvas.draw()
+    buf = canvas.tostring_rgb()
+    (width, height) = canvas.get_width_height()
+    im = QImage(buf, width, height, QImage.Format_RGB888)
+    return QPixmap(im)
+
+def calcSpectrum(data, rate):
+    # t = np.arange(0.0, 3.0, 00013)
+    # s2 = 2 * np.sin(2 * np.pi * 400 * t)
+    fig = plt.figure(figsize=[5, 1.6], frameon=False)
+    ax = fig.add_subplot(111)
+    spectrum, freqs, t, im = plt.specgram(data, Fs=rate,
+                                          NFFT=512, noverlap=384,
+                                          detrend='none', cmap=plt.magma())
 
     canvas = plt.gcf().canvas
     canvas.draw()
@@ -126,3 +146,16 @@ if __name__ == "__main__":
     window = MyApp()
     window.show()
     sys.exit(app.exec_())
+
+def btn(data, audioParams):
+    # roughN = 200
+    # accurateN = 800
+    # deltaT_ms = 10
+
+    # deltaX = audioParams['RATE'] / 1000 * deltaT_ms
+    # frame = 0
+    # offset = int(deltaX * frame)
+    # while offset + roughN < data.size:
+    rate = audioParams['RATE']
+    spectrum, freqs, t, im = plt.specgram(data, Fs=rate, detrend='none')
+    plt.show()
