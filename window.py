@@ -7,6 +7,7 @@ from PyQt5.QtGui import QImage, QPixmap
 import pyaudio, time, wave
 import numpy as np
 import matplotlib.pyplot as plt
+from datetime import datetime
 
 qtCreatorFile = "./mainwindow.ui"  # Путь к UI файлу
 
@@ -28,7 +29,7 @@ class MyApp(QMainWindow, Ui_MainWindow):
             'CHUNK' : 1024,
             'FORMAT' : pyaudio.paInt32,
             'CHANNELS' : 1,
-            'RATE' : 8096,
+            'RATE' : 8192,
             'WAVE_OUTPUT_FILENAME' : "output.wav",
             'DURATION' : self.boxDuration.value()}
 
@@ -38,11 +39,14 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.btnPlay.setEnabled(True)
         self.rawAmplitudeGraph = plot(self.rawData)
         self.lblRawAmplitude.setPixmap(self.rawAmplitudeGraph)
-        self.lblRawSpectrum.setPixmap(
-            calcSpectrum(self.rawData, self.audioParams['RATE']))
+
+        s = calcSpectrum(self.rawData[1], self.audioParams['RATE'])
+        self.lblRawSpectrum.setPixmap(s[0])
+        self.lblCalcTime.setText('FFT ~ {}мс.'
+                                 .format(s[1].microseconds / 1000))
 
     def btnPlayClicked(self):
-        play(self.rawData, self.audioParams)
+        play(self.rawData[1], self.audioParams)
 
 def record(audioParams):
     chunk = audioParams['CHUNK']
@@ -68,10 +72,13 @@ def record(audioParams):
     print("Recording...")
 
     frames = []
-
-    for i in range(0, int(rate / chunk * duration)):
+    nFrames = int(rate / chunk * duration)
+    remainder = rate * duration - chunk * nFrames
+    for i in range(0, nFrames):
         data = stream.read(chunk)
         frames.append(data)
+    data = stream.read(remainder)
+    frames.append(data)
 
     print("Done recording.")
 
@@ -79,18 +86,20 @@ def record(audioParams):
     stream.close()
     p.terminate()
 
-    b = []
+    I = np.array([], dtype=np.int32)
     for f in frames:
-        b.append(np.frombuffer(f, dtype=np.int32))
+        I = np.append(I, np.frombuffer(f, dtype=np.int32))
 
-    wf = wave.open(wave_out_filename, 'wb')
-    wf.setnchannels(channels)
-    wf.setsampwidth(p.get_sample_size(format))
-    wf.setframerate(rate)
-    wf.writeframes(b''.join(frames))
-    wf.close()
+    t = np.arange(0.0, duration, 1.0 / rate)
+    # wf = wave.open(wave_out_filename, 'wb')
+    # wf.setnchannels(channels)
+    # wf.setsampwidth(p.get_sample_size(format))
+    # wf.setframerate(rate)
+    # wf.writeframes(b''.join(frames))
+    # wf.close()
 
-    return np.ravel(b)
+
+    return t, I
 
 def play(data, audioParams):
     chunk = audioParams['CHUNK']
@@ -113,10 +122,13 @@ def play(data, audioParams):
     p.terminate()
 
 def plot(data):
-    norm = data / np.linalg.norm(data, np.inf)
+    t, I = data
+    norm = I / np.linalg.norm(I, np.inf)
     fig = plt.figure(figsize=[5, 0.8], frameon=False)
     ax = fig.add_subplot(111)
-    ax.plot(norm)
+    ax.plot(t, norm)
+    ax.margins(0, 0.1)
+    ax.set_ylim(-1, 1)
 
     canvas = fig.canvas
     canvas.draw()
@@ -126,36 +138,29 @@ def plot(data):
     return QPixmap(im)
 
 def calcSpectrum(data, rate):
-    # t = np.arange(0.0, 3.0, 00013)
-    # s2 = 2 * np.sin(2 * np.pi * 400 * t)
-    fig = plt.figure(figsize=[5, 1.6], frameon=False)
+    # t = np.arange(0.0, 3.0, 2.**-13.)
+    # s2 = 2 * np.sin(2 * np.pi * 200 * t)
+    fig = plt.figure(figsize=[5, 2.5], frameon=False)
     ax = fig.add_subplot(111)
+
+    start = datetime.now()
     spectrum, freqs, t, im = plt.specgram(data, Fs=rate,
                                           NFFT=512, noverlap=384,
                                           detrend='none', cmap=plt.magma())
+    calc_time = datetime.now() - start\
+
+    ax.set_yscale('log', basey=2)
+    ax.set_ylim(64, 4096)
 
     canvas = plt.gcf().canvas
     canvas.draw()
     buf = canvas.tostring_rgb()
     (width, height) = canvas.get_width_height()
     im = QImage(buf, width, height, QImage.Format_RGB888)
-    return QPixmap(im)
+    return QPixmap(im), calc_time
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MyApp()
     window.show()
     sys.exit(app.exec_())
-
-def btn(data, audioParams):
-    # roughN = 200
-    # accurateN = 800
-    # deltaT_ms = 10
-
-    # deltaX = audioParams['RATE'] / 1000 * deltaT_ms
-    # frame = 0
-    # offset = int(deltaX * frame)
-    # while offset + roughN < data.size:
-    rate = audioParams['RATE']
-    spectrum, freqs, t, im = plt.specgram(data, Fs=rate, detrend='none')
-    plt.show()
