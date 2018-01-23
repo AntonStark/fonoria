@@ -33,8 +33,25 @@ class MyApp(QMainWindow, Ui_MainWindow):
             'WAVE_OUTPUT_FILENAME' : "output.wav",
             'DURATION' : self.boxDuration.value()}
 
+    def printProgress(self, sec):
+        dur = self.audioParams['DURATION']
+        self.btnRecord.setText('{}/{}'.format(sec, dur))
+        self.repaint()
+
     def btnRecordClicked(self):
-        self.rawData = record(self.audioParams)
+        self.btnRecord.setText('3..')
+        self.repaint()
+        time.sleep(0.5)
+        self.btnRecord.setText('2.')
+        self.repaint()
+        time.sleep(0.5)
+        self.btnRecord.setText('1')
+        self.repaint()
+        time.sleep(0.5)
+
+        self.printProgress(0)
+        self.rawData = record(self.audioParams, self.printProgress)
+        self.btnRecord.setText('Запись')
 
         self.btnPlay.setEnabled(True)
         self.rawAmplitudeGraph = plot(self.rawData)
@@ -48,18 +65,12 @@ class MyApp(QMainWindow, Ui_MainWindow):
     def btnPlayClicked(self):
         play(self.rawData[1], self.audioParams)
 
-def record(audioParams):
+def record(audioParams, printProgress):
     chunk = audioParams['CHUNK']
     format = audioParams['FORMAT']
     channels = audioParams['CHANNELS']
     rate = audioParams['RATE']
-    wave_out_filename = audioParams['WAVE_OUTPUT_FILENAME']
     duration = audioParams['DURATION']
-
-    print("2...")
-    time.sleep(1)
-    print("1...")
-    time.sleep(1)
 
     p = pyaudio.PyAudio()
 
@@ -69,18 +80,25 @@ def record(audioParams):
                     input=True,
                     frames_per_buffer=chunk)
 
-    print("Recording...")
-
     frames = []
-    nFrames = int(rate / chunk * duration)
+
+    fps = rate / chunk
+    nFrames = int(fps * duration)
     remainder = rate * duration - chunk * nFrames
+
+    printProgress(0)
+    oldSed = 0
     for i in range(0, nFrames):
         data = stream.read(chunk)
         frames.append(data)
+
+        sec = int(i / fps)
+        if sec != oldSed:
+            printProgress(sec)
+            oldSed = sec
+
     data = stream.read(remainder)
     frames.append(data)
-
-    print("Done recording.")
 
     stream.stop_stream()
     stream.close()
@@ -91,6 +109,8 @@ def record(audioParams):
         I = np.append(I, np.frombuffer(f, dtype=np.int32))
 
     t = np.arange(0.0, duration, 1.0 / rate)
+
+    # wave_out_filename = audioParams['WAVE_OUTPUT_FILENAME']
     # wf = wave.open(wave_out_filename, 'wb')
     # wf.setnchannels(channels)
     # wf.setsampwidth(p.get_sample_size(format))
