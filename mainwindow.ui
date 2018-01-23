@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>625</width>
+    <width>1038</width>
     <height>402</height>
    </rect>
   </property>
@@ -606,9 +606,18 @@
         </spacer>
        </item>
        <item>
-        <widget class="QSlider" name="selectMoment">
+        <widget class="QSlider" name="momentSelector">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
          <property name="maximum">
           <number>9999</number>
+         </property>
+         <property name="pageStep">
+          <number>10</number>
+         </property>
+         <property name="tracking">
+          <bool>false</bool>
          </property>
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
@@ -659,6 +668,19 @@
       </widget>
      </item>
     </layout>
+   </widget>
+   <widget class="QLabel" name="lblMomentumSpectrum">
+    <property name="geometry">
+     <rect>
+      <x>630</x>
+      <y>0</y>
+      <width>401</width>
+      <height>401</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Some Moment Spectrum</string>
+    </property>
    </widget>
   </widget>
  </widget>

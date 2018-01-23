@@ -23,6 +23,7 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.btnRecord.clicked.connect(self.btnRecordClicked)
         self.btnPlay.clicked.connect(self.btnPlayClicked)
         self.boxDuration.valueChanged.connect(self.setAudioParams)
+        self.momentSelector.valueChanged.connect(self.refreshMomentumSpectrum)
 
     def setAudioParams(self):
         self.audioParams = {
@@ -52,18 +53,26 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.printProgress(0)
         self.rawData = record(self.audioParams, self.printProgress)
         self.btnRecord.setText('Запись')
-
         self.btnPlay.setEnabled(True)
+        self.momentSelector.setEnabled(True)
+        # self.momentSelector.setMaximum = self.audioParams['DURATION'] * 64 - 3
+
         self.rawAmplitudeGraph = plot(self.rawData)
         self.lblRawAmplitude.setPixmap(self.rawAmplitudeGraph)
 
-        s = calcSpectrum(self.rawData[1], self.audioParams['RATE'])
-        self.lblRawSpectrum.setPixmap(s[0])
+        start = datetime.now()
+        self.spectrum = calcSpectrum(self.rawData[1], self.audioParams['RATE'])
+        calc_time = datetime.now() - start
+
+        self.lblRawSpectrum.setPixmap(self.spectrum[0])
         self.lblCalcTime.setText('FFT ~ {}мс.'
-                                 .format(s[1].microseconds / 1000))
+                                 .format(calc_time.microseconds / 1000))
 
     def btnPlayClicked(self):
         play(self.rawData[1], self.audioParams)
+
+    def refreshMomentumSpectrum(self, momentIndex):
+        self.lblMomentumSpectrum.setPixmap(getMomentumSpectrum(self.spectrum[1], momentIndex / 10000))
 
 def record(audioParams, printProgress):
     chunk = audioParams['CHUNK']
@@ -163,11 +172,9 @@ def calcSpectrum(data, rate):
     fig = plt.figure(figsize=[5, 2.5], frameon=False)
     ax = fig.add_subplot(111)
 
-    start = datetime.now()
     spectrum, freqs, t, im = plt.specgram(data, Fs=rate,
                                           NFFT=512, noverlap=384,
                                           detrend='none', cmap=plt.magma())
-    calc_time = datetime.now() - start\
 
     ax.set_yscale('log', basey=2)
     ax.set_ylim(64, 4096)
@@ -177,7 +184,23 @@ def calcSpectrum(data, rate):
     buf = canvas.tostring_rgb()
     (width, height) = canvas.get_width_height()
     im = QImage(buf, width, height, QImage.Format_RGB888)
-    return QPixmap(im), calc_time
+    return QPixmap(im), spectrum
+
+def getMomentumSpectrum(spectrum, partOfDuration):
+    nFrame = int(partOfDuration * spectrum.shape[1])
+
+    fig = plt.figure(figsize=[4, 4], frameon=False)
+    ax = fig.add_subplot(111)
+    intensity = spectrum[:, nFrame]
+    ax.plot(np.linspace(0, 4096, intensity.size), intensity)
+    ax.set_yscale('log', basey=10)
+
+    canvas = fig.canvas
+    canvas.draw()
+    buf = canvas.tostring_rgb()
+    (width, height) = canvas.get_width_height()
+    im = QImage(buf, width, height, QImage.Format_RGB888)
+    return QPixmap(im)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
