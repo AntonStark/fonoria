@@ -193,11 +193,42 @@ def calc_spectrum(data, rate):
     return QPixmap(im), spectrum
 
 
-def eval_fundamental(intensity):
+def eval_fund(freqs, fund_lower_bound, fund_upper_bound, freq_step):
+    """"""
+    fund_lower_bound -= fund_lower_bound % freq_step
+    fund_upper_bound += freq_step - fund_upper_bound % freq_step
+    part_matches = 0.6
+
+    """ 
+        Перебираем допустимый номер гармоники. От большего к меньшему,
+        потому что нужно максимальное совпадение по частотам. А если так и 
+        не было сопадения - выкидываем из частот. Совпадение с учётом 
+        приблизительности определения частоты.
+    """
+    freqs = np.sort(freqs)
+    for f in reversed(freqs):
+        n_harmonic = int(f / fund_upper_bound)
+        N_harmonic = int(f / fund_lower_bound)
+
+    # for fund in range(fund_upper_bound, fund_lower_bound - 1, -1):
+    #     mismatch, match = 0, 0
+    #     for freq in reversed(freqs):
+    #         if (freq % fund > freq_step/2) and (fund - freq % fund > freq_step/2):
+    #             mismatch += 1
+    #             if mismatch >= (1 - part_matches) * freqs.size:
+    #                 break
+    #         else:
+    #             match += 1
+    #             if match >= part_matches * freqs.size:
+    #                 return fund
+    return 0
+
+
+def analyse_spectrum(intensity):
     freq_step = 16
     fund_lower_bound = 50
     fund_upper_bound = 300
-    n_main_comp = 20
+    n_main_comp = 30
 
     indices = np.arange(intensity.size)
     ind_round = int(fund_lower_bound / freq_step / 2)
@@ -205,12 +236,13 @@ def eval_fundamental(intensity):
     important = []
     intensity = ma.masked_where(indices < fund_lower_bound / freq_step, intensity)
     for n in range(0, n_main_comp):
-        max = np.argmax(intensity)
-        important.append((max * freq_step, intensity.max()))
-        intensity = ma.masked_where(abs(indices - max) <= ind_round, intensity)
+        max_intensity = np.argmax(intensity)
+        important.append((max_intensity * freq_step, intensity.max()))
+        intensity = ma.masked_where(abs(indices - max_intensity) <= ind_round, intensity)
 
     freq = np.array(important)[:, 0]
-    return freq
+
+    return freq, eval_fund(freq, fund_lower_bound, fund_upper_bound, freq_step)
 
 
 def get_momentum_spectrum(spectrum, part_of_duration):
@@ -223,9 +255,10 @@ def get_momentum_spectrum(spectrum, part_of_duration):
     ax.set_yscale('log', basey=10)
     ax.grid()
 
-    freq_fund = eval_fundamental(intensity)
-    for x in freq_fund:
+    freqs, fund = analyse_spectrum(intensity)
+    for x in freqs:
         ax.axvline(x, color='green')
+    print(fund)
 
     canvas = fig.canvas
     canvas.draw()
