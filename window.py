@@ -193,34 +193,45 @@ def calc_spectrum(data, rate):
     return QPixmap(im), spectrum
 
 
+def get_lower_harmonics(freqs, freq_step, chosen_f, h):
+    lower_f = chosen_f - freq_step/2
+    upper_f = chosen_f + freq_step/2
+    fund_lower = int(lower_f / h)
+    fund_upper = int(upper_f / h) + 1
+    delta_fund = (fund_upper - fund_lower)/2 / (fund_lower + fund_upper)/2
+
+    approx_match = []
+    if delta_fund < 0.05:
+        for f in freqs:
+            if f <= int(f / fund_lower) * fund_upper:
+                approx_match.append(f)
+
+    return [fund_lower, fund_upper], approx_match
+
+
 def eval_fund(freqs, fund_lower_bound, fund_upper_bound, freq_step):
-    """"""
     fund_lower_bound -= fund_lower_bound % freq_step
     fund_upper_bound += freq_step - fund_upper_bound % freq_step
-    part_matches = 0.6
 
-    """ 
-        Перебираем допустимый номер гармоники. От большего к меньшему,
-        потому что нужно максимальное совпадение по частотам. А если так и 
-        не было сопадения - выкидываем из частот. Совпадение с учётом 
-        приблизительности определения частоты.
-    """
+    fund = 0
+    chosen_harmonics = []
     freqs = np.sort(freqs)
     for f in reversed(freqs):
-        n_harmonic = int(f / fund_upper_bound)
-        N_harmonic = int(f / fund_lower_bound)
+        prob_harmonic_min = max(int(f / fund_upper_bound), 1)
+        prob_harmonic_max = int(f / fund_lower_bound)
+        if prob_harmonic_max < 3:
+            continue    # хотим иметь хотя бы две кратных вниз, иначе низкая точность
+        harmonics = [f]
 
-    # for fund in range(fund_upper_bound, fund_lower_bound - 1, -1):
-    #     mismatch, match = 0, 0
-    #     for freq in reversed(freqs):
-    #         if (freq % fund > freq_step/2) and (fund - freq % fund > freq_step/2):
-    #             mismatch += 1
-    #             if mismatch >= (1 - part_matches) * freqs.size:
-    #                 break
-    #         else:
-    #             match += 1
-    #             if match >= part_matches * freqs.size:
-    #                 return fund
+        for h in range(prob_harmonic_min, prob_harmonic_max):
+            fund_diap, new_lower_harmonics = get_lower_harmonics(freqs, freq_step, f, h)
+            if len(new_lower_harmonics) > len(harmonics):
+                harmonics = new_lower_harmonics
+                fund = int(f / h)
+
+        if len(harmonics) >= 3:
+            print(harmonics, "fund(", fund_diap, "), N_match = ", len(harmonics))
+
     return 0
 
 
@@ -228,7 +239,7 @@ def analyse_spectrum(intensity):
     freq_step = 16
     fund_lower_bound = 50
     fund_upper_bound = 300
-    n_main_comp = 30
+    n_main_comp = 40
 
     indices = np.arange(intensity.size)
     ind_round = int(fund_lower_bound / freq_step / 2)
