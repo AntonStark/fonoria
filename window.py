@@ -31,6 +31,8 @@ class MyApp(QMainWindow, Ui_MainWindow):
 
         self.btnRecord.clicked.connect(self.btn_record_clicked)
         self.btnPlay.clicked.connect(self.btn_play_clicked)
+        self.use_subs_spectrum = False
+        self.chkSubsConst.stateChanged.connect(self.check_subs_const)
         self.boxDuration.valueChanged.connect(self.reset_duration)
         self.momentSelector.valueChanged.connect(self.refresh_momentum_spectrum)
 
@@ -74,8 +76,19 @@ class MyApp(QMainWindow, Ui_MainWindow):
     def btn_play_clicked(self):
         play(self.rawData[1], self.audioParams)
 
+    def check_subs_const(self, state):
+        self.use_subs_spectrum = (state == 2)
+        if (self.use_subs_spectrum):
+            self.subs_spectrum = substract_constant(self.spectrum[1])
+        self.refresh_momentum_spectrum(self.moment_index)
+
     def refresh_momentum_spectrum(self, moment_index):
-        self.lblMomentumSpectrum.setPixmap(get_momentum_spectrum(self.spectrum[1], moment_index / 10000))
+        self.moment_index = moment_index
+        if (self.use_subs_spectrum):
+            spectr = self.subs_spectrum
+        else:
+            spectr = self.spectrum[1]
+        self.lblMomentumSpectrum.setPixmap(get_momentum_spectrum(spectr, moment_index / 10000))
 
 
 def record(audioParams, print_progress):
@@ -172,6 +185,13 @@ def plot(data):
     return QPixmap(im)
 
 
+def substract_constant(spectrum):
+    copy = np.copy(spectrum)
+    for frequency_level in copy:
+        frequency_level -= np.min(frequency_level)
+    return copy
+
+
 def calc_spectrum(data, rate):
     # t = np.arange(0.0, 3.0, 2.**-13.)
     # s2 = 2 * np.sin(2 * np.pi * 200 * t)
@@ -193,7 +213,7 @@ def calc_spectrum(data, rate):
     return QPixmap(im), spectrum
 
 
-def get_lower_harmonics(freqs, freq_step, chosen_f, h):
+def get_family_harmonics(freqs, freq_step, chosen_f, h):
     lower_f = chosen_f - freq_step/2
     upper_f = chosen_f + freq_step/2
     fund_lower = int(lower_f / h)
@@ -213,8 +233,8 @@ def eval_fund(freqs, fund_lower_bound, fund_upper_bound, freq_step):
     fund_lower_bound -= fund_lower_bound % freq_step
     fund_upper_bound += freq_step - fund_upper_bound % freq_step
 
-    fund = 0
     chosen_harmonics = []
+    matches_for_frequency = {}
     freqs = np.sort(freqs)
     for f in reversed(freqs):
         prob_harmonic_min = max(int(f / fund_upper_bound), 1)
@@ -222,17 +242,32 @@ def eval_fund(freqs, fund_lower_bound, fund_upper_bound, freq_step):
         if prob_harmonic_max < 3:
             continue    # хотим иметь хотя бы две кратных вниз, иначе низкая точность
         harmonics = [f]
+        fund_diap = []
 
         for h in range(prob_harmonic_min, prob_harmonic_max):
-            fund_diap, new_lower_harmonics = get_lower_harmonics(freqs, freq_step, f, h)
+            new_fund_diap, new_lower_harmonics = get_family_harmonics(freqs, freq_step, f, h)
             if len(new_lower_harmonics) > len(harmonics):
-                harmonics = new_lower_harmonics
+                harmonics, fund_diap = new_lower_harmonics, new_fund_diap
                 fund = int(f / h)
 
-        if len(harmonics) >= 3:
-            print(harmonics, "fund(", fund_diap, "), N_match = ", len(harmonics))
+        # теперь для данного максимума есть диапазон и кол-во гармоник для частот из этого диапазона
+        matches = len(harmonics)
+        for fr in range(fund_diap[0], fund_diap[1]):
+            if fr not in matches_for_frequency or matches_for_frequency[fr] < matches:
+                matches_for_frequency[fr] = matches
 
-    return 0
+    fund = 0
+    series = 1
+    matches = 0
+    for fr in matches_for_frequency:
+        if matches_for_frequency[fr] > matches:
+            fund = fr
+    while fund + series in matches_for_frequency\
+        and matches_for_frequency[fund + series] == matches_for_frequency[fund]:
+        series += 1
+
+    fund += (series-1)/2
+    return fund
 
 
 def analyse_spectrum(intensity):

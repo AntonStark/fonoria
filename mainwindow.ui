@@ -548,6 +548,13 @@
         </spacer>
        </item>
        <item>
+        <widget class="QCheckBox" name="chkSubsConst">
+         <property name="text">
+          <string>Вычесть константу</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QLabel" name="lblCalcTime">
          <property name="text">
           <string/>
