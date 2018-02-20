@@ -9,6 +9,7 @@ import numpy as np
 import numpy.ma as ma
 import matplotlib.pyplot as plt
 from datetime import datetime
+import math
 
 qtCreatorFile = "./mainwindow.ui"  # Путь к UI файлу
 
@@ -233,48 +234,41 @@ def eval_fund(freqs, fund_lower_bound, fund_upper_bound, freq_step):
     fund_lower_bound -= fund_lower_bound % freq_step
     fund_upper_bound += freq_step - fund_upper_bound % freq_step
 
-    chosen_harmonics = []
-    matches_for_frequency = {}
-    freqs = np.sort(freqs)
-    for f in reversed(freqs):
-        prob_harmonic_min = max(int(f / fund_upper_bound), 1)
-        prob_harmonic_max = int(f / fund_lower_bound)
+    fund_diaps = {}
+    for f in freqs:
+        magn = math.log10(f[1])
+        prob_harmonic_min = max(int(f[0] / fund_upper_bound), 1)
+        prob_harmonic_max = int(f[0] / fund_lower_bound)
         if prob_harmonic_max < 3:
             continue    # хотим иметь хотя бы две кратных вниз, иначе низкая точность
-        harmonics = [f]
-        fund_diap = []
 
-        for h in range(prob_harmonic_min, prob_harmonic_max):
-            new_fund_diap, new_lower_harmonics = get_family_harmonics(freqs, freq_step, f, h)
-            if len(new_lower_harmonics) > len(harmonics):
-                harmonics, fund_diap = new_lower_harmonics, new_fund_diap
-                fund = int(f / h)
+        for h in range(prob_harmonic_max, prob_harmonic_min, -1):
+            fund_low, fund_high = (f[0] - freq_step/2)/h, (f[0] + freq_step/2)/h
+            fund_diaps[fund_low], fund_diaps[fund_high] = magn, -magn
 
-        # теперь для данного максимума есть диапазон и кол-во гармоник для частот из этого диапазона
-        matches = len(harmonics)
-        for fr in range(fund_diap[0], fund_diap[1]):
-            if fr not in matches_for_frequency or matches_for_frequency[fr] < matches:
-                matches_for_frequency[fr] = matches
+    sum = 0
+    x = []
+    y = []
+    sor = sorted(fund_diaps.items(), key=lambda i: i[0])
+    for d in sor:
+        sum += d[1]
+        x.append(d[0])
+        y.append(sum)
+    fig = plt.figure(figsize=[4, 4], frameon=False)
+    ax = fig.add_subplot(111)
+    ax.plot(x, y)
+    fig.show()
 
     fund = 0
-    series = 1
-    matches = 0
-    for fr in matches_for_frequency:
-        if matches_for_frequency[fr] > matches:
-            fund = fr
-    while fund + series in matches_for_frequency\
-        and matches_for_frequency[fund + series] == matches_for_frequency[fund]:
-        series += 1
 
-    fund += (series-1)/2
     return fund
 
 
 def analyse_spectrum(intensity):
     freq_step = 16
-    fund_lower_bound = 50
+    fund_lower_bound = 80
     fund_upper_bound = 300
-    n_main_comp = 40
+    n_main_comp = 30
 
     indices = np.arange(intensity.size)
     ind_round = int(fund_lower_bound / freq_step / 2)
@@ -288,7 +282,64 @@ def analyse_spectrum(intensity):
 
     freq = np.array(important)[:, 0]
 
-    return freq, eval_fund(freq, fund_lower_bound, fund_upper_bound, freq_step)
+    print('seq_search: ' + str(sequential_search(freq, freq_step, fund_lower_bound, fund_upper_bound)))
+
+    return freq, eval_fund(important, fund_lower_bound, fund_upper_bound, freq_step)
+
+
+def calc_intersect(fund_min, fund_max, band_left, band_right):
+    right_corner = fund_max * int(band_left/fund_min)
+    next_left_corner = fund_min * (int(band_left/fund_min)+1)
+    intersect = 0
+    if band_left < right_corner:
+        intersect += min(band_right, right_corner) - band_left
+        if band_right > next_left_corner:
+            intersect += band_right - next_left_corner
+    else:
+        if band_right > next_left_corner:
+            next_right_corner = fund_max * (int(band_left/fund_min)+1)
+            intersect += min(next_right_corner, band_right) - next_left_corner
+    intersect /= band_right - band_left
+    return intersect
+
+
+def analyse_bands(intensity, freq_step, lower_bound, upper_bound, n_parts):
+    total_energy = math.fsum(intensity)
+    width = (upper_bound - lower_bound) / n_parts
+    statistics = {}
+    for p in range(0, n_parts):
+        chosen_energy, ch = 0, 0
+        freq_min = lower_bound + p * width
+        freq_max = freq_min + width
+        for f in range(0, intensity.size):
+            freq = f * freq_step
+            inter = calc_intersect(freq_min, freq_max, freq - freq_step/2, freq + freq_step/2)
+            chosen_energy += intensity[f] * inter
+            ch += inter
+        statistics[(freq_min, freq_max)] = chosen_energy/total_energy / ch/intensity.size
+    print(sorted(statistics.items(), key=lambda i: i[1]))
+
+
+def drop_out_noise(important, delta_freq):
+    а = []
+    """ 
+    Для каждой пары частот проверяем, что найдётся третья кратная.
+    Для начала, решим эту задачу как будто частоты известны точно
+    """
+
+
+def sequential_search(freqs, freq_step, lower_bound, upper_bound):
+    fund = lower_bound
+    count = 0
+    for w in range(upper_bound, lower_bound, -1):
+        new_count = 0
+        for f in freqs:
+            if f % w < freq_step/2 or w - f % w < freq_step/2:
+                new_count += 1
+        if new_count > count:
+            fund = w
+            count = new_count
+    return fund
 
 
 def get_momentum_spectrum(spectrum, part_of_duration):
@@ -305,6 +356,8 @@ def get_momentum_spectrum(spectrum, part_of_duration):
     for x in freqs:
         ax.axvline(x, color='green')
     print(fund)
+
+    analyse_bands(intensity, 16, 80, 300, 100)
 
     canvas = fig.canvas
     canvas.draw()
