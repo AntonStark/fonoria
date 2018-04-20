@@ -10,6 +10,7 @@ import numpy.ma as ma
 import matplotlib.pyplot as plt
 from datetime import datetime
 import math
+import os
 
 qtCreatorFile = "./mainwindow.ui"  # Путь к UI файлу
 
@@ -36,6 +37,13 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.chkSubsConst.stateChanged.connect(self.check_subs_const)
         self.boxDuration.valueChanged.connect(self.reset_duration)
         self.momentSelector.valueChanged.connect(self.refresh_momentum_spectrum)
+        self.btnOpenFile.clicked.connect(self.show_folders)
+
+    def show_folders(self):
+        all_subdirs = next(os.walk('.'))[1]
+        visible = [d for d in all_subdirs if not d.startswith('.')]
+        self.boxFolder.clear()
+        self.boxFolder.addItems(visible)
 
     def reset_duration(self, dur):
         self.audioParams['DURATION'] = dur

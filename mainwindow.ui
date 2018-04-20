@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1038</width>
-    <height>402</height>
+    <height>492</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -445,9 +445,9 @@
     <property name="geometry">
      <rect>
       <x>0</x>
-      <y>-3</y>
+      <y>0</y>
       <width>621</width>
-      <height>401</height>
+      <height>491</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="mainLayout">
@@ -466,6 +466,89 @@
      <property name="bottomMargin">
       <number>5</number>
      </property>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <property name="spacing">
+        <number>6</number>
+       </property>
+       <property name="sizeConstraint">
+        <enum>QLayout::SetDefaultConstraint</enum>
+       </property>
+       <item>
+        <widget class="QLabel" name="lblMode">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="text">
+          <string>Режим:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="boxMode">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <item>
+          <property name="text">
+           <string>файл</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>запись</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="lblFolder">
+         <property name="text">
+          <string>Папка:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="boxFolder"/>
+       </item>
+       <item>
+        <widget class="QLabel" name="label">
+         <property name="text">
+          <string>Файл:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="boxFile"/>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnOpenFile">
+         <property name="text">
+          <string>Открыть</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_4">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
      <item>
       <layout class="QHBoxLayout" name="controlsLayout">
        <property name="spacing">
@@ -562,6 +645,19 @@
         </widget>
        </item>
       </layout>
+     </item>
+     <item>
+      <spacer name="verticalSpacer">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>40</height>
+        </size>
+       </property>
+      </spacer>
      </item>
      <item>
       <widget class="QLabel" name="lblRawAmplitude">
@@ -674,15 +770,28 @@
        </property>
       </widget>
      </item>
+     <item>
+      <spacer name="verticalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Vertical</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>40</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
     </layout>
    </widget>
    <widget class="QLabel" name="lblMomentumSpectrum">
     <property name="geometry">
      <rect>
-      <x>630</x>
-      <y>0</y>
-      <width>401</width>
-      <height>401</height>
+      <x>640</x>
+      <y>93</y>
+      <width>391</width>
+      <height>391</height>
      </rect>
     </property>
     <property name="text">
