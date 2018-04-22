@@ -33,17 +33,48 @@ class MyApp(QMainWindow, Ui_MainWindow):
 
         self.btnRecord.clicked.connect(self.btn_record_clicked)
         self.btnPlay.clicked.connect(self.btn_play_clicked)
+
         self.use_subs_spectrum = False
         self.chkSubsConst.stateChanged.connect(self.check_subs_const)
         self.boxDuration.valueChanged.connect(self.reset_duration)
         self.momentSelector.valueChanged.connect(self.refresh_momentum_spectrum)
-        self.btnOpenFile.clicked.connect(self.show_folders)
 
-    def show_folders(self):
+        self.toggle_file_mode()
+        self.boxMode.activated[str].connect(self.switch_input_mode)
+        self.boxFolder.activated[str].connect(self.show_files)
+
+    def switch_input_mode(self, mode):
+        if mode == 'файл':
+            self.toggle_file_mode()
+        elif mode == 'запись':
+            self.toggle_record_mode()
+
+    def show_files(self, directory):
+        files = next(os.walk(directory))[2]
+        files = [f for f in files if f.endswith('.wav')]
+
+        self.boxFile.clear()
+        self.boxFile.addItems(files)
+
+    def toggle_file_mode(self):
+        prev_ind, prev_val = self.boxFolder.currentIndex(), self.boxFolder.currentText()
+
         all_subdirs = next(os.walk('.'))[1]
         visible = [d for d in all_subdirs if not d.startswith('.')]
+        visible.append('.')
+
         self.boxFolder.clear()
         self.boxFolder.addItems(visible)
+        if prev_val in visible:
+            self.boxFolder.setCurrentIndex(prev_ind)
+        self.show_files(self.boxFolder.currentText())
+
+        self.frameFile.show()
+        self.frameRecord.hide()
+
+    def toggle_record_mode(self):
+        self.frameFile.hide()
+        self.frameRecord.show()
 
     def reset_duration(self, dur):
         self.audioParams['DURATION'] = dur
