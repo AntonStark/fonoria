@@ -25,7 +25,7 @@ class MyApp(QMainWindow, Ui_MainWindow):
         Ui_MainWindow.__init__(self)
         self.setupUi(self)
 
-        self.audioParams = {
+        self.audio_params = {
             'CHUNK': 1024,
             'FORMAT': pyaudio.paInt32,
             'CHANNELS': 1,
@@ -36,6 +36,7 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.btnRecord.clicked.connect(self.btn_record_clicked)
         self.btnPlay.clicked.connect(self.btn_play_clicked)
         self.btnSave.clicked.connect(self.btn_save_clicked)
+        self.btnOpen.clicked.connect(self.btn_open_clicked)
 
         self.lineFilename.hide()
         self.use_subs_spectrum = False
@@ -81,10 +82,10 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.frameRecord.show()
 
     def reset_duration(self, dur):
-        self.audioParams['DURATION'] = dur
+        self.audio_params['DURATION'] = dur
 
     def print_progress(self, sec):
-        dur = self.audioParams['DURATION']
+        dur = self.audio_params['DURATION']
         self.btnRecord.setText('{}/{}'.format(sec, dur))
         self.repaint()
 
@@ -100,7 +101,7 @@ class MyApp(QMainWindow, Ui_MainWindow):
         time.sleep(0.5)
 
         self.print_progress(0)
-        self.rawData = record(self.audioParams, self.print_progress)
+        self.rawData = record(self.audio_params, self.print_progress)
         self.raw_frames = self.rawData[2]
         self.btnRecord.setText('Запись')
         self.btnPlay.setEnabled(True)
@@ -111,7 +112,7 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.lblRawAmplitude.setPixmap(self.rawAmplitudeGraph)
 
         start = datetime.now()
-        self.spectrum = process.calc_spectrum(self.rawData[1], self.audioParams['RATE'])
+        self.spectrum = process.calc_spectrum(self.rawData[1], self.audio_params['RATE'])
         calc_time = datetime.now() - start
 
         self.lblRawSpectrum.setPixmap(self.spectrum[0])
@@ -119,7 +120,7 @@ class MyApp(QMainWindow, Ui_MainWindow):
                                  .format(calc_time.microseconds / 1000))
 
     def btn_play_clicked(self):
-        play(self.rawData[1], self.audioParams)
+        play(self.rawData[1], self.audio_params)
 
     def btn_save_clicked(self):
         if not self.lineFilename.isVisible():
@@ -128,9 +129,12 @@ class MyApp(QMainWindow, Ui_MainWindow):
             filename = self.lineFilename.text()
             if not filename.endswith('.wav'):
                 filename += '.wav'
-            save(self.audioParams, self.raw_frames, filename)
+            save(self.audio_params, self.raw_frames, filename)
             self.lineFilename.clear()
             self.lineFilename.hide()
+
+    def btn_open_clicked(self):
+        print('asd')
 
     def check_subs_const(self, state):
         self.use_subs_spectrum = (state == 2)
@@ -141,10 +145,10 @@ class MyApp(QMainWindow, Ui_MainWindow):
     def refresh_momentum_spectrum(self, moment_index):
         self.moment_index = moment_index
         if (self.use_subs_spectrum):
-            spectr = self.subs_spectrum
+            spectrum = self.subs_spectrum
         else:
-            spectr = self.spectrum[1]
-        self.lblMomentumSpectrum.setPixmap(process.get_momentum_spectrum(spectr, moment_index / 10000))
+            spectrum = self.spectrum[1]
+        self.lblMomentumSpectrum.setPixmap(process.get_momentum_spectrum(spectrum, moment_index / 10000))
 
 
 def record(audio_params, print_progress):

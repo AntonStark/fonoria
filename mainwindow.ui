@@ -533,7 +533,7 @@
              <widget class="QComboBox" name="boxFile"/>
             </item>
             <item>
-             <widget class="QPushButton" name="btnOpenFile">
+             <widget class="QPushButton" name="btnOpen">
               <property name="text">
                <string>Открыть</string>
               </property>

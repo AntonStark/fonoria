@@ -1,3 +1,4 @@
+import pyaudio
 import numpy as np
 import numpy.ma as ma
 import matplotlib.pyplot as plt
@@ -5,6 +6,21 @@ import math
 
 from PyQt5.QtGui import QImage, QPixmap
 
+class AudioData:
+
+    def __init__(self):
+        self._params = {
+                'CHUNK': 1024,
+                'FORMAT': pyaudio.paInt32,
+                'CHANNELS': 1,
+                'RATE': 8192,
+                'DURATION': 3}
+        self._frames = []
+
+    def set_frames(self, frames):
+        self._frames = frames
+
+audio_data = AudioData()
 
 def subtract_constant(spectrum):
     copy = np.copy(spectrum)
