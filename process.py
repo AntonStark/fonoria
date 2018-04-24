@@ -6,21 +6,59 @@ import math
 
 from PyQt5.QtGui import QImage, QPixmap
 
+
 class AudioData:
 
     def __init__(self):
-        self._params = {
-                'CHUNK': 1024,
-                'FORMAT': pyaudio.paInt32,
-                'CHANNELS': 1,
-                'RATE': 8192,
-                'DURATION': 3}
-        self._frames = []
+        self._chunk = 1024
+        self._format = pyaudio.paInt32
+        self._channels = 1
+        self._rate = 8192
+        self._duration = 3
 
-    def set_frames(self, frames):
+        self._frames = []
+        self._intensities = np.array([], dtype=np.int32)
+        self._timeline = np.array([])
+
+    def set_data(self, frames, duration):
         self._frames = frames
+        self._duration = duration
+        for f in frames:
+            self._intensities = np.append(self._intensities, np.frombuffer(f, dtype=np.int32))
+        self._timeline = np.arange(0.0, duration, 1.0 / self._rate)
+
+    def reset_params(self, **kwargs):
+        changed = False
+        for key, value in kwargs.items():
+            if key == 'chunk':
+                self._chunk,    changed = value, True
+            elif key == 'format':
+                self._format,   changed = value, True
+            elif key == 'channels':
+                self._channels, changed = value, True
+            elif key == 'rate':
+                self._rate,     changed = value, True
+        if changed:
+            self._duration = 0
+            self._frames = []
+            self._intensities = np.array([], dtype=np.int32)
+            self._timeline = np.array([])
+
+    def chunk(self):
+        return self._chunk
+
+    def format(self):
+        return self._format
+
+    def channels(self):
+        return self._channels
+
+    def rate(self):
+        return self._rate
+
 
 audio_data = AudioData()
+
 
 def subtract_constant(spectrum):
     copy = np.copy(spectrum)

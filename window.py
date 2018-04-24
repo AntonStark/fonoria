@@ -25,14 +25,6 @@ class MyApp(QMainWindow, Ui_MainWindow):
         Ui_MainWindow.__init__(self)
         self.setupUi(self)
 
-        self.audio_params = {
-            'CHUNK': 1024,
-            'FORMAT': pyaudio.paInt32,
-            'CHANNELS': 1,
-            'RATE': 8192,
-            'DURATION': self.boxDuration.value()}
-        self.raw_frames = []
-
         self.btnRecord.clicked.connect(self.btn_record_clicked)
         self.btnPlay.clicked.connect(self.btn_play_clicked)
         self.btnSave.clicked.connect(self.btn_save_clicked)
@@ -41,7 +33,6 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.lineFilename.hide()
         self.use_subs_spectrum = False
         self.chkSubsConst.stateChanged.connect(self.check_subs_const)
-        self.boxDuration.valueChanged.connect(self.reset_duration)
         self.momentSelector.valueChanged.connect(self.refresh_momentum_spectrum)
 
         self.toggle_file_mode()
@@ -81,11 +72,7 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.frameFile.hide()
         self.frameRecord.show()
 
-    def reset_duration(self, dur):
-        self.audio_params['DURATION'] = dur
-
-    def print_progress(self, sec):
-        dur = self.audio_params['DURATION']
+    def print_progress(self, sec, dur):
         self.btnRecord.setText('{}/{}'.format(sec, dur))
         self.repaint()
 
@@ -100,19 +87,16 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.repaint()
         time.sleep(0.5)
 
-        self.print_progress(0)
-        self.rawData = record(self.audio_params, self.print_progress)
-        self.raw_frames = self.rawData[2]
+        record(self.boxDuration.value(), self.print_progress)
         self.btnRecord.setText('Запись')
         self.btnPlay.setEnabled(True)
         self.momentSelector.setEnabled(True)
-        # self.momentSelector.setMaximum = self.audioParams['DURATION'] * 64 - 3
 
-        self.rawAmplitudeGraph = plot(self.rawData)
+        self.rawAmplitudeGraph = plot()
         self.lblRawAmplitude.setPixmap(self.rawAmplitudeGraph)
 
         start = datetime.now()
-        self.spectrum = process.calc_spectrum(self.rawData[1], self.audio_params['RATE'])
+        self.spectrum = process.calc_spectrum(process.audio_data._intensities, process.audio_data.rate())
         calc_time = datetime.now() - start
 
         self.lblRawSpectrum.setPixmap(self.spectrum[0])
@@ -120,7 +104,7 @@ class MyApp(QMainWindow, Ui_MainWindow):
                                  .format(calc_time.microseconds / 1000))
 
     def btn_play_clicked(self):
-        play(self.rawData[1], self.audio_params)
+        play()
 
     def btn_save_clicked(self):
         if not self.lineFilename.isVisible():
@@ -129,7 +113,7 @@ class MyApp(QMainWindow, Ui_MainWindow):
             filename = self.lineFilename.text()
             if not filename.endswith('.wav'):
                 filename += '.wav'
-            save(self.audio_params, self.raw_frames, filename)
+            save(filename)
             self.lineFilename.clear()
             self.lineFilename.hide()
 
@@ -138,49 +122,44 @@ class MyApp(QMainWindow, Ui_MainWindow):
 
     def check_subs_const(self, state):
         self.use_subs_spectrum = (state == 2)
-        if (self.use_subs_spectrum):
+        if self.use_subs_spectrum:
             self.subs_spectrum = process.subtract_constant(self.spectrum[1])
         self.refresh_momentum_spectrum(self.moment_index)
 
     def refresh_momentum_spectrum(self, moment_index):
         self.moment_index = moment_index
-        if (self.use_subs_spectrum):
+        if self.use_subs_spectrum:
             spectrum = self.subs_spectrum
         else:
             spectrum = self.spectrum[1]
         self.lblMomentumSpectrum.setPixmap(process.get_momentum_spectrum(spectrum, moment_index / 10000))
 
 
-def record(audio_params, print_progress):
-    chunk = audio_params['CHUNK']
-    format = audio_params['FORMAT']
-    channels = audio_params['CHANNELS']
-    rate = audio_params['RATE']
-    duration = audio_params['DURATION']
-
+def record(duration, print_progress):
+    ad = process.audio_data
     p = pyaudio.PyAudio()
 
-    stream = p.open(format=format,
-                    channels=channels,
-                    rate=rate,
+    stream = p.open(format=ad.format(),
+                    channels=ad.channels(),
+                    rate=ad.rate(),
                     input=True,
-                    frames_per_buffer=chunk)
+                    frames_per_buffer=ad.chunk())
 
     frames = []
 
-    fps = rate / chunk
+    fps = ad.rate() / ad.chunk()
     n_frames = int(fps * duration)
-    remainder = rate * duration - chunk * n_frames
+    remainder = ad.rate() * duration - ad.chunk() * n_frames
 
-    print_progress(0)
+    print_progress(0, duration)
     old_sed = 0
     for i in range(0, n_frames):
-        data = stream.read(chunk)
+        data = stream.read(ad.chunk())
         frames.append(data)
 
         sec = int(i / fps)
         if sec != old_sed:
-            print_progress(sec)
+            print_progress(sec, duration)
             old_sed = sec
 
     data = stream.read(remainder)
@@ -190,43 +169,33 @@ def record(audio_params, print_progress):
     stream.close()
     p.terminate()
 
-    intensities = np.array([], dtype=np.int32)
-    for f in frames:
-        intensities = np.append(intensities, np.frombuffer(f, dtype=np.int32))
-
-    t = np.arange(0.0, duration, 1.0 / rate)
-
-    return t, intensities, frames
+    process.audio_data.set_data(frames, duration)
 
 
-def save(audio_params, frames, filename):
-    format = audio_params['FORMAT']
-    channels = audio_params['CHANNELS']
-    rate = audio_params['RATE']
+def save(filename):
+    ad = process.audio_data
+    frames = ad._frames
 
     wf = wave.open(filename, 'wb')
-    wf.setnchannels(channels)
+    wf.setnchannels(ad.channels())
     wf.setsampwidth(pyaudio.PyAudio()
-                    .get_sample_size(format))
-    wf.setframerate(rate)
+                    .get_sample_size(ad.format()))
+    wf.setframerate(ad.rate())
     wf.writeframes(b''.join(frames))
     wf.close()
 
 
-def play(data, audio_params):
-    chunk = audio_params['CHUNK']
-    format = audio_params['FORMAT']
-    channels = audio_params['CHANNELS']
-    rate = audio_params['RATE']
-
+def play():
+    ad = process.audio_data
     p = pyaudio.PyAudio()
 
-    stream = p.open(format=format,
-                    channels=channels,
-                    rate=rate,
+    stream = p.open(format=ad.format(),
+                    channels=ad.channels(),
+                    rate=ad.rate(),
                     output=True,
-                    frames_per_buffer=chunk)
+                    frames_per_buffer=ad.chunk())
 
+    data = process.audio_data._intensities
     stream.write(data, data.size)
 
     stream.stop_stream()
@@ -234,12 +203,12 @@ def play(data, audio_params):
     p.terminate()
 
 
-def plot(data):
-    t, I, f = data
-    norm = I / np.linalg.norm(I, np.inf)
+def plot():
+    intense = process.audio_data._intensities
+    norm = intense / np.linalg.norm(intense, np.inf)
     fig = plt.figure(figsize=[5, 0.8], frameon=False)
     ax = fig.add_subplot(111)
-    ax.plot(t, norm)
+    ax.plot(process.audio_data._timeline, norm)
     ax.margins(0, 0.1)
     ax.set_ylim(-1, 1)
 
