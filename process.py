@@ -3,6 +3,8 @@ import numpy as np
 import numpy.ma as ma
 import matplotlib.pyplot as plt
 import math
+from datetime import datetime
+
 
 from PyQt5.QtGui import QImage, QPixmap
 
@@ -20,12 +22,13 @@ class AudioData:
         self._intensities = np.array([], dtype=np.int32)
         self._timeline = np.array([])
 
-    def set_data(self, frames, duration):
+    def set_data(self, frames):
         self._frames = frames
-        self._duration = duration
+        self._intensities = np.array([], dtype=np.int32)
         for f in frames:
             self._intensities = np.append(self._intensities, np.frombuffer(f, dtype=np.int32))
-        self._timeline = np.arange(0.0, duration, 1.0 / self._rate)
+        self._duration = self._intensities.size / self._rate
+        self._timeline = np.arange(0.0, self._duration, 1.0 / self._rate)
 
     def reset_params(self, **kwargs):
         changed = False
@@ -63,7 +66,7 @@ audio_data = AudioData()
 def subtract_constant(spectrum):
     copy = np.copy(spectrum)
     for frequency_level in copy:
-        frequency_level -= np.min(frequency_level)
+        frequency_level /= np.min(frequency_level)
     return copy
 
 
@@ -110,7 +113,7 @@ def eval_fund(freqs, fund_lower_bound, fund_upper_bound, freq_step):
     fig = plt.figure(figsize=[4, 4], frameon=False)
     ax = fig.add_subplot(111)
     ax.plot(x, y)
-    fig.show()
+    # fig.show()
 
     fund = 0
 
@@ -208,9 +211,9 @@ def get_momentum_spectrum(spectrum, part_of_duration):
     ax.grid()
 
     freqs, fund = analyse_spectrum(intensity)
-    for x in freqs:
-        ax.axvline(x, color='green')
-    print(fund)
+    # for x in freqs:
+    #     ax.axvline(x, color='green')
+    # print(fund)
 
     analyse_bands(intensity, 16, 80, 300, 100)
 
@@ -228,9 +231,11 @@ def calc_spectrum(data, rate):
     fig = plt.figure(figsize=[5, 2.5], frameon=False)
     ax = fig.add_subplot(111)
 
+    start = datetime.now()
     spectrum, freqs, t, im = plt.specgram(data, Fs=rate,
                                           NFFT=512, noverlap=384,
                                           detrend='none', cmap=plt.magma())
+    calc_time = datetime.now() - start
 
     ax.set_yscale('log', basey=2)
     ax.set_ylim(64, 4096)
@@ -240,4 +245,4 @@ def calc_spectrum(data, rate):
     buf = canvas.tostring_rgb()
     (width, height) = canvas.get_width_height()
     im = QImage(buf, width, height, QImage.Format_RGB888)
-    return QPixmap(im), spectrum
+    return QPixmap(im), spectrum, calc_time

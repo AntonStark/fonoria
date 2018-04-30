@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1038</width>
+    <width>1057</width>
     <height>492</height>
    </rect>
   </property>
@@ -792,6 +792,13 @@
          </property>
         </spacer>
        </item>
+       <item>
+        <widget class="QLabel" name="lblMomentum">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
       </layout>
      </item>
      <item>
@@ -821,11 +828,14 @@
    <widget class="QLabel" name="lblMomentumSpectrum">
     <property name="geometry">
      <rect>
-      <x>640</x>
-      <y>93</y>
+      <x>660</x>
+      <y>0</y>
       <width>391</width>
       <height>391</height>
      </rect>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Box</enum>
     </property>
     <property name="text">
      <string>Some Moment Spectrum</string>

@@ -77,31 +77,23 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.repaint()
 
     def btn_record_clicked(self):
-        self.btnRecord.setText('3..')
-        self.repaint()
-        time.sleep(0.5)
-        self.btnRecord.setText('2.')
-        self.repaint()
-        time.sleep(0.5)
-        self.btnRecord.setText('1')
-        self.repaint()
-        time.sleep(0.5)
+        for mess in ['3..', '2.', '1']:
+            self.btnRecord.setText(mess)
+            self.repaint()
+            time.sleep(0.5)
 
         record(self.boxDuration.value(), self.print_progress)
-        self.btnRecord.setText('Запись')
         self.btnPlay.setEnabled(True)
         self.momentSelector.setEnabled(True)
+        self.btnRecord.setText('Запись')
 
-        self.rawAmplitudeGraph = plot()
-        self.lblRawAmplitude.setPixmap(self.rawAmplitudeGraph)
+        plot(self.lblRawAmplitude.setPixmap)
 
-        start = datetime.now()
         self.spectrum = process.calc_spectrum(process.audio_data._intensities, process.audio_data.rate())
-        calc_time = datetime.now() - start
 
         self.lblRawSpectrum.setPixmap(self.spectrum[0])
         self.lblCalcTime.setText('FFT ~ {}мс.'
-                                 .format(calc_time.microseconds / 1000))
+                                 .format(self.spectrum[2].microseconds / 1000))
 
     def btn_play_clicked(self):
         play()
@@ -118,7 +110,20 @@ class MyApp(QMainWindow, Ui_MainWindow):
             self.lineFilename.hide()
 
     def btn_open_clicked(self):
-        print('asd')
+        folder = self.boxFolder.currentText()
+        file = self.boxFile.currentText()
+        if file != '':
+            open_(folder + '/' + file)
+
+        # todo Дорефакторить это дерьмо из btn_record_clicked
+        self.btnPlay.setEnabled(True)
+        self.momentSelector.setEnabled(True)
+        plot(self.lblRawAmplitude.setPixmap)
+        self.spectrum = process.calc_spectrum(process.audio_data._intensities, process.audio_data.rate())
+        self.lblRawSpectrum.setPixmap(self.spectrum[0])
+        self.lblCalcTime.setText('FFT ~ {}мс.'
+                                 .format(self.spectrum[2].microseconds / 1000))
+
 
     def check_subs_const(self, state):
         self.use_subs_spectrum = (state == 2)
@@ -133,6 +138,7 @@ class MyApp(QMainWindow, Ui_MainWindow):
         else:
             spectrum = self.spectrum[1]
         self.lblMomentumSpectrum.setPixmap(process.get_momentum_spectrum(spectrum, moment_index / 10000))
+        self.lblMomentum.setText("{0:.2f}".format(moment_index / 10000 * process.audio_data._duration))
 
 
 def record(duration, print_progress):
@@ -151,16 +157,12 @@ def record(duration, print_progress):
     n_frames = int(fps * duration)
     remainder = ad.rate() * duration - ad.chunk() * n_frames
 
-    print_progress(0, duration)
-    old_sed = 0
     for i in range(0, n_frames):
         data = stream.read(ad.chunk())
         frames.append(data)
 
         sec = int(i / fps)
-        if sec != old_sed:
-            print_progress(sec, duration)
-            old_sed = sec
+        print_progress(sec, duration)
 
     data = stream.read(remainder)
     frames.append(data)
@@ -169,7 +171,7 @@ def record(duration, print_progress):
     stream.close()
     p.terminate()
 
-    process.audio_data.set_data(frames, duration)
+    process.audio_data.set_data(frames)
 
 
 def save(filename):
@@ -183,6 +185,24 @@ def save(filename):
     wf.setframerate(ad.rate())
     wf.writeframes(b''.join(frames))
     wf.close()
+
+
+def open_(filename):
+    file = wave.open(filename, 'rb')
+    n_frames = file.getnframes()
+
+    parts, remainder = int(n_frames / 1024), n_frames % 1024
+    frames = []
+    for i in range(0, parts):
+        data = file.readframes(1024)
+        frames.append(data)
+    if remainder != 0:
+        data = file.readframes(remainder)
+        frames.append(data)
+    file.close()
+
+    process.audio_data.reset_params(channels=file.getnchannels(), rate=file.getframerate())
+    process.audio_data.set_data(frames)
 
 
 def play():
@@ -203,7 +223,7 @@ def play():
     p.terminate()
 
 
-def plot():
+def plot(set_pixmap_method):
     intense = process.audio_data._intensities
     norm = intense / np.linalg.norm(intense, np.inf)
     fig = plt.figure(figsize=[5, 0.8], frameon=False)
@@ -217,8 +237,8 @@ def plot():
     buf = canvas.tostring_rgb()
     (width, height) = canvas.get_width_height()
     im = QImage(buf, width, height, QImage.Format_RGB888)
-    return QPixmap(im)
-
+    # return QPixmap(im)
+    set_pixmap_method(QPixmap(im))
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
