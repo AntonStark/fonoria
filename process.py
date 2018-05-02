@@ -59,12 +59,68 @@ class AudioData:
     def rate(self):
         return self._rate
 
+    def intensities(self):
+        return self._intensities
+
 
 audio_data = AudioData()
 
+raw_spectrum = np.array([])
+subs_spectrum = None
 
-def subtract_constant(spectrum):
-    copy = np.copy(spectrum)
+
+def plot_intense():
+    intense = audio_data.intensities()
+    norm = intense / np.linalg.norm(intense, np.inf)
+
+    fig = plt.figure(figsize=[7, 0.8], frameon=False)
+    ax = fig.add_subplot(111)
+
+    ax.plot(audio_data._timeline, norm)
+    ax.margins(0, 0.1)
+    ax.set_ylim(-1, 1)
+
+    canvas = fig.canvas
+    # plt.close(fig)
+    canvas.draw()
+    buf = canvas.tostring_rgb()
+    (width, height) = canvas.get_width_height()
+    im = QImage(buf, width, height, QImage.Format_RGB888)
+    return QPixmap(im)
+
+
+# raw_spectrum = None
+
+def calc_spectrum():
+    data = audio_data.intensities()
+    rate = audio_data.rate()
+
+    fig = plt.figure(figsize=[7, 2.5], frameon=False)
+    ax = fig.add_subplot(111)
+
+    start = datetime.now()
+    spectrum, freqs, t, im = plt.specgram(data, Fs=rate,
+                                          NFFT=512, noverlap=384,
+                                          detrend='none', cmap=plt.magma())
+    calc_time = datetime.now() - start
+
+    ax.set_yscale('log', basey=2)
+    ax.set_ylim(64, 4096)
+
+    canvas = fig.canvas
+    # plt.close(fig)
+    canvas.draw()
+    buf = canvas.tostring_rgb()
+    (width, height) = canvas.get_width_height()
+    im = QImage(buf, width, height, QImage.Format_RGB888)
+
+    global raw_spectrum
+    raw_spectrum = spectrum
+    return QPixmap(im), calc_time.microseconds
+
+
+def subtract_constant():
+    copy = np.copy(raw_spectrum)
     for frequency_level in copy:
         frequency_level /= np.min(frequency_level)
     return copy
@@ -200,7 +256,11 @@ def sequential_search(freqs, freq_step, lower_bound, upper_bound):
     return fund
 
 
-def get_momentum_spectrum(spectrum, part_of_duration):
+def get_momentum_spectrum(part_of_duration, use_subs):
+    if use_subs:
+        spectrum = subs_spectrum
+    else:
+        spectrum = raw_spectrum
     n_frames = int(part_of_duration * spectrum.shape[1])
 
     fig = plt.figure(figsize=[4, 4], frameon=False)
@@ -210,7 +270,7 @@ def get_momentum_spectrum(spectrum, part_of_duration):
     ax.set_yscale('log', basey=10)
     ax.grid()
 
-    freqs, fund = analyse_spectrum(intensity)
+    # freqs, fund = analyse_spectrum(intensity)
     # for x in freqs:
     #     ax.axvline(x, color='green')
     # print(fund)
@@ -223,26 +283,3 @@ def get_momentum_spectrum(spectrum, part_of_duration):
     (width, height) = canvas.get_width_height()
     im = QImage(buf, width, height, QImage.Format_RGB888)
     return QPixmap(im)
-
-
-def calc_spectrum(data, rate):
-    # t = np.arange(0.0, 3.0, 2.**-13.)
-    # s2 = 2 * np.sin(2 * np.pi * 200 * t)
-    fig = plt.figure(figsize=[5, 2.5], frameon=False)
-    ax = fig.add_subplot(111)
-
-    start = datetime.now()
-    spectrum, freqs, t, im = plt.specgram(data, Fs=rate,
-                                          NFFT=512, noverlap=384,
-                                          detrend='none', cmap=plt.magma())
-    calc_time = datetime.now() - start
-
-    ax.set_yscale('log', basey=2)
-    ax.set_ylim(64, 4096)
-
-    canvas = plt.gcf().canvas
-    canvas.draw()
-    buf = canvas.tostring_rgb()
-    (width, height) = canvas.get_width_height()
-    im = QImage(buf, width, height, QImage.Format_RGB888)
-    return QPixmap(im), spectrum, calc_time
