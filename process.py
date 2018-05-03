@@ -1,72 +1,16 @@
-import pyaudio
-import numpy as np
-import numpy.ma as ma
-import matplotlib.pyplot as plt
 import math
 from datetime import datetime
 
-
+import matplotlib.mlab as mlab
+import matplotlib.pyplot as plt
+import numpy as np
+import numpy.ma as ma
 from PyQt5.QtGui import QImage, QPixmap
 
-
-class AudioData:
-
-    def __init__(self):
-        self._chunk = 1024
-        self._format = pyaudio.paInt32
-        self._channels = 1
-        self._rate = 8192
-        self._duration = 3
-
-        self._frames = []
-        self._intensities = np.array([], dtype=np.int32)
-        self._timeline = np.array([])
-
-    def set_data(self, frames):
-        self._frames = frames
-        self._intensities = np.array([], dtype=np.int32)
-        for f in frames:
-            self._intensities = np.append(self._intensities, np.frombuffer(f, dtype=np.int32))
-        self._duration = self._intensities.size / self._rate
-        self._timeline = np.arange(0.0, self._duration, 1.0 / self._rate)
-
-    def reset_params(self, **kwargs):
-        changed = False
-        for key, value in kwargs.items():
-            if key == 'chunk':
-                self._chunk,    changed = value, True
-            elif key == 'format':
-                self._format,   changed = value, True
-            elif key == 'channels':
-                self._channels, changed = value, True
-            elif key == 'rate':
-                self._rate,     changed = value, True
-        if changed:
-            self._duration = 0
-            self._frames = []
-            self._intensities = np.array([], dtype=np.int32)
-            self._timeline = np.array([])
-
-    def chunk(self):
-        return self._chunk
-
-    def format(self):
-        return self._format
-
-    def channels(self):
-        return self._channels
-
-    def rate(self):
-        return self._rate
-
-    def intensities(self):
-        return self._intensities
-
+from storage_helpers import AudioData, SpectrumData
 
 audio_data = AudioData()
-
-raw_spectrum = np.array([])
-subs_spectrum = None
+spectrum_data = SpectrumData()
 
 
 def plot_intense():
@@ -81,57 +25,64 @@ def plot_intense():
     ax.set_ylim(-1, 1)
 
     canvas = fig.canvas
-    # plt.close(fig)
     canvas.draw()
     buf = canvas.tostring_rgb()
+    plt.close(fig)
+
     (width, height) = canvas.get_width_height()
     im = QImage(buf, width, height, QImage.Format_RGB888)
     return QPixmap(im)
 
 
-# raw_spectrum = None
-
 def calc_spectrum():
     data = audio_data.intensities()
-    rate = audio_data.rate()
-
-    fig = plt.figure(figsize=[7, 2.5], frameon=False)
-    ax = fig.add_subplot(111)
+    nfft, noverlap, fs = 512, 384, audio_data.rate()
 
     start = datetime.now()
-    spectrum, freqs, t, im = plt.specgram(data, Fs=rate,
-                                          NFFT=512, noverlap=384,
-                                          detrend='none', cmap=plt.magma())
+    spectr, freqs, t = mlab.specgram(data, Fs=fs, NFFT=nfft,
+                                     noverlap=noverlap, detrend='none')
     calc_time = datetime.now() - start
+
+    pad_xextent = (nfft - noverlap) / fs / 2
+    xmin, xmax = np.min(t) - pad_xextent, np.max(t) + pad_xextent
+    global spec_extent
+    spec_extent = xmin, xmax, freqs[0], freqs[-1]
+
+    spectrum_data.set(spectr)
+    return calc_time.microseconds
+
+
+def plot_spectrum():
+    spectrum = spectrum_data.get()
+
+    Z = 10. * np.log10(spectrum)
+    Z = np.flipud(Z)
+
+    fig = plt.figure(figsize=[7, 2.5], frameon=False)
+    ax = fig.subplots()
+
+    im = plt.imshow(Z, plt.magma(), extent=spec_extent)
 
     ax.set_yscale('log', basey=2)
     ax.set_ylim(64, 4096)
 
     canvas = fig.canvas
-    # plt.close(fig)
     canvas.draw()
     buf = canvas.tostring_rgb()
+    plt.close(fig)
+
     (width, height) = canvas.get_width_height()
     im = QImage(buf, width, height, QImage.Format_RGB888)
 
-    global raw_spectrum
-    raw_spectrum = spectrum
-    return QPixmap(im), calc_time.microseconds
-
-
-def subtract_constant():
-    copy = np.copy(raw_spectrum)
-    for frequency_level in copy:
-        frequency_level /= np.min(frequency_level)
-    return copy
+    return QPixmap(im)
 
 
 def get_family_harmonics(freqs, freq_step, chosen_f, h):
-    lower_f = chosen_f - freq_step/2
-    upper_f = chosen_f + freq_step/2
+    lower_f = chosen_f - freq_step / 2
+    upper_f = chosen_f + freq_step / 2
     fund_lower = int(lower_f / h)
     fund_upper = int(upper_f / h) + 1
-    delta_fund = (fund_upper - fund_lower)/2 / (fund_lower + fund_upper)/2
+    delta_fund = (fund_upper - fund_lower) / 2 / (fund_lower + fund_upper) / 2
 
     approx_match = []
     if delta_fund < 0.05:
@@ -152,10 +103,10 @@ def eval_fund(freqs, fund_lower_bound, fund_upper_bound, freq_step):
         prob_harmonic_min = max(int(f[0] / fund_upper_bound), 1)
         prob_harmonic_max = int(f[0] / fund_lower_bound)
         if prob_harmonic_max < 3:
-            continue    # хотим иметь хотя бы две кратных вниз, иначе низкая точность
+            continue  # хотим иметь хотя бы две кратных вниз, иначе низкая точность
 
         for h in range(prob_harmonic_max, prob_harmonic_min, -1):
-            fund_low, fund_high = (f[0] - freq_step/2)/h, (f[0] + freq_step/2)/h
+            fund_low, fund_high = (f[0] - freq_step / 2) / h, (f[0] + freq_step / 2) / h
             fund_diaps[fund_low], fund_diaps[fund_high] = magnitude, -magnitude
 
     summary = 0
@@ -200,8 +151,8 @@ def analyse_spectrum(intensity):
 
 
 def calc_intersect(fund_min, fund_max, band_left, band_right):
-    right_corner = fund_max * int(band_left/fund_min)
-    next_left_corner = fund_min * (int(band_left/fund_min)+1)
+    right_corner = fund_max * int(band_left / fund_min)
+    next_left_corner = fund_min * (int(band_left / fund_min) + 1)
     intersect = 0
     if band_left < right_corner:
         intersect += min(band_right, right_corner) - band_left
@@ -209,7 +160,7 @@ def calc_intersect(fund_min, fund_max, band_left, band_right):
             intersect += band_right - next_left_corner
     else:
         if band_right > next_left_corner:
-            next_right_corner = fund_max * (int(band_left/fund_min)+1)
+            next_right_corner = fund_max * (int(band_left / fund_min) + 1)
             intersect += min(next_right_corner, band_right) - next_left_corner
     intersect /= band_right - band_left
     return intersect
@@ -225,10 +176,10 @@ def analyse_bands(intensity, freq_step, lower_bound, upper_bound, n_parts):
         freq_max = freq_min + width
         for f in range(0, intensity.size):
             freq = f * freq_step
-            inter = calc_intersect(freq_min, freq_max, freq - freq_step/2, freq + freq_step/2)
+            inter = calc_intersect(freq_min, freq_max, freq - freq_step / 2, freq + freq_step / 2)
             chosen_energy += intensity[f] * inter
             ch += inter
-        statistics[(freq_min, freq_max)] = chosen_energy/total_energy / ch/intensity.size
+        statistics[(freq_min, freq_max)] = chosen_energy / total_energy / ch / intensity.size
     print(sorted(statistics.items(), key=lambda i: i[1]))
 
 
@@ -248,7 +199,7 @@ def sequential_search(freqs, freq_step, lower_bound, upper_bound):
     for w in range(upper_bound, lower_bound, -1):
         new_count = 0
         for f in freqs:
-            if f % w < freq_step/2 or w - f % w < freq_step/2:
+            if f % w < freq_step / 2 or w - f % w < freq_step / 2:
                 new_count += 1
         if new_count > count:
             fund = w
@@ -256,16 +207,14 @@ def sequential_search(freqs, freq_step, lower_bound, upper_bound):
     return fund
 
 
-def get_momentum_spectrum(part_of_duration, use_subs):
-    if use_subs:
-        spectrum = subs_spectrum
-    else:
-        spectrum = raw_spectrum
-    n_frames = int(part_of_duration * spectrum.shape[1])
+def get_momentum_spectrum(part_of_duration):
+    spectrum = spectrum_data.get()
+    n_frame = int(part_of_duration * spectrum.shape[1])
+
+    intensity = spectrum[:, n_frame]
 
     fig = plt.figure(figsize=[4, 4], frameon=False)
-    ax = fig.add_subplot(111)
-    intensity = spectrum[:, n_frames]
+    ax = fig.subplots()
     ax.plot(np.linspace(0, 4096, intensity.size), intensity)
     ax.set_yscale('log', basey=10)
     ax.grid()
@@ -281,5 +230,7 @@ def get_momentum_spectrum(part_of_duration, use_subs):
     canvas.draw()
     buf = canvas.tostring_rgb()
     (width, height) = canvas.get_width_height()
+    plt.close(fig)
+
     im = QImage(buf, width, height, QImage.Format_RGB888)
     return QPixmap(im)

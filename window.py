@@ -1,16 +1,11 @@
+import os
 import sys
 
+import pyaudio
+import time
+import wave
 from PyQt5 import uic
 from PyQt5.QtWidgets import QMainWindow, QApplication
-from PyQt5.QtGui import QImage, QPixmap
-
-import pyaudio, time, wave
-import numpy as np
-import numpy.ma as ma
-import matplotlib.pyplot as plt
-from datetime import datetime
-import math
-import os
 
 import process
 
@@ -81,9 +76,9 @@ class MyApp(QMainWindow, Ui_MainWindow):
 
         self.lblRawAmplitude.setPixmap(process.plot_intense())
 
-        res = process.calc_spectrum()
-        self.lblRawSpectrum.setPixmap(res[0])
-        self.lblCalcTime.setText('FFT ~ {}мс.'.format(res[1] / 1000))
+        eval_time = process.calc_spectrum()
+        self.lblRawSpectrum.setPixmap(process.plot_spectrum())
+        self.lblCalcTime.setText('FFT ~ {}мс.'.format(eval_time / 1000))
 
     def print_progress(self, sec, dur):
         self.btnRecord.setText('{}/{}'.format(sec, dur))
@@ -122,14 +117,13 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.toggle_audio_loaded_state()
 
     def check_subs_const(self, state):
-        self.use_subs_spectrum = (state == 2)
-        if self.use_subs_spectrum and process.subs_spectrum is None:
-            process.subs_spectrum = process.subtract_constant()
+        process.spectrum_data.use_subs(state == 2)
+        self.lblRawSpectrum.setPixmap(process.plot_spectrum())
         self.refresh_momentum_spectrum(self.moment_index)
 
     def refresh_momentum_spectrum(self, moment_index):
         self.moment_index = moment_index
-        self.lblMomentumSpectrum.setPixmap(process.get_momentum_spectrum(moment_index / 10000, self.use_subs_spectrum))
+        self.lblMomentumSpectrum.setPixmap(process.get_momentum_spectrum(moment_index / 10000))
         self.lblMomentum.setText("{0:.2f}".format(moment_index / 10000 * process.audio_data._duration))
 
 
