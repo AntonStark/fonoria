@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1057</width>
-    <height>492</height>
+    <width>1134</width>
+    <height>645</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -445,9 +445,9 @@
     <property name="geometry">
      <rect>
       <x>0</x>
-      <y>0</y>
-      <width>658</width>
-      <height>491</height>
+      <y>1</y>
+      <width>711</width>
+      <height>641</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="mainLayout">
@@ -677,6 +677,32 @@
         <enum>QLayout::SetMinimumSize</enum>
        </property>
        <item>
+        <widget class="QLabel" name="lblSpectr">
+         <property name="text">
+          <string>Первичная обработка:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="boxSpectr">
+         <item>
+          <property name="text">
+           <string>исходный</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>нормализованный</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>сглаженная нормализация</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item>
         <spacer name="horizontalSpacer">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
@@ -688,20 +714,6 @@
           </size>
          </property>
         </spacer>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="chkSubsConst">
-         <property name="text">
-          <string>Вычесть константу</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="lblCalcTime">
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
        </item>
       </layout>
      </item>
@@ -823,15 +835,37 @@
        </property>
       </widget>
      </item>
+     <item>
+      <widget class="QLabel" name="lblRawSpectrum_details">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::Box</enum>
+       </property>
+       <property name="text">
+        <string>Raw Sound Spectrum</string>
+       </property>
+      </widget>
+     </item>
     </layout>
    </widget>
    <widget class="QLabel" name="lblMomentumSpectrum">
     <property name="geometry">
      <rect>
-      <x>660</x>
-      <y>0</y>
-      <width>391</width>
-      <height>391</height>
+      <x>720</x>
+      <y>237</y>
+      <width>399</width>
+      <height>400</height>
      </rect>
     </property>
     <property name="frameShape">

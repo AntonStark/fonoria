@@ -25,17 +25,13 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.btnSave.clicked.connect(self.btn_save_clicked)
         self.btnOpen.clicked.connect(self.btn_open_clicked)
 
-        self.chkSubsConst.stateChanged.connect(self.check_subs_const)
-        self.momentSelector.valueChanged.connect(self.refresh_momentum_spectrum)
-
         self.boxMode.activated[str].connect(self.switch_input_mode)
         self.boxFolder.activated[str].connect(self.show_files)
+        self.boxSpectr.activated[str].connect(self.switch_spectrum_mode)
 
+        self.momentSelector.valueChanged.connect(self.refresh_momentum_spectrum)
         self.lineFilename.hide()
         self.toggle_file_mode()
-
-        self.use_subs_spectrum = False
-        self.moment_index = 0
 
     def switch_input_mode(self, mode):
         if mode == 'файл':
@@ -76,9 +72,8 @@ class MyApp(QMainWindow, Ui_MainWindow):
 
         self.lblRawAmplitude.setPixmap(process.plot_intense())
 
-        eval_time = process.calc_spectrum()
-        self.lblRawSpectrum.setPixmap(process.plot_spectrum())
-        self.lblCalcTime.setText('FFT ~ {}мс.'.format(eval_time / 1000))
+        process.calc_spectrum()
+        self.refresh_plots()
 
     def print_progress(self, sec, dur):
         self.btnRecord.setText('{}/{}'.format(sec, dur))
@@ -116,15 +111,30 @@ class MyApp(QMainWindow, Ui_MainWindow):
 
         self.toggle_audio_loaded_state()
 
-    def check_subs_const(self, state):
-        process.spectrum_data.use_subs(state == 2)
-        self.lblRawSpectrum.setPixmap(process.plot_spectrum())
-        self.refresh_momentum_spectrum(self.moment_index)
+    def switch_spectrum_mode(self, sp_mode):
+        if sp_mode == 'исходный':
+            process.spectrum_data.set_use_raw()
+        elif sp_mode == 'нормализованный':
+            process.spectrum_data.set_use_subs()
+        elif sp_mode == 'сглаженная нормализация':
+            process.spectrum_data.set_use_subs_smoothed()
+
+        self.refresh_plots()
 
     def refresh_momentum_spectrum(self, moment_index):
-        self.moment_index = moment_index
         self.lblMomentumSpectrum.setPixmap(process.get_momentum_spectrum(moment_index / 10000))
         self.lblMomentum.setText("{0:.2f}".format(moment_index / 10000 * process.audio_data._duration))
+
+    def refresh_plots(self):
+        spec, spec_details = process.plot_spectrum()
+
+        self.lblRawSpectrum.setPixmap(spec)
+        self.lblRawSpectrum.resize(spec.size())
+
+        self.lblRawSpectrum_details.setPixmap(spec_details)
+        self.lblRawSpectrum_details.resize(spec_details.size())
+
+        self.refresh_momentum_spectrum(self.momentSelector.value())
 
 
 def record(duration, print_progress):
