@@ -33,6 +33,8 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.lineFilename.hide()
         self.toggle_file_mode()
 
+        self.btnFrFourier.clicked.connect(self.fr_fourier)
+
     def switch_input_mode(self, mode):
         if mode == 'файл':
             self.toggle_file_mode()
@@ -122,8 +124,9 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.refresh_plots()
 
     def refresh_momentum_spectrum(self, moment_index):
-        self.lblMomentumSpectrum.setPixmap(process.get_momentum_spectrum(moment_index / 10000))
-        self.lblMomentum.setText("{0:.2f}".format(moment_index / 10000 * process.audio_data._duration))
+        moment_index /= 10000
+        self.lblMomentumSpectrum.setPixmap(process.get_momentum_spectrum(moment_index))
+        self.lblMomentum.setText("{0:.2f}".format(moment_index * process.audio_data._duration))
 
     def refresh_plots(self):
         spec, spec_details = process.plot_spectrum()
@@ -134,7 +137,13 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.lblRawSpectrum_details.setPixmap(spec_details)
         self.lblRawSpectrum_details.resize(spec_details.size())
 
+        self.lblAmplitude.setPixmap(process.plot_intense_proc())
+
         self.refresh_momentum_spectrum(self.momentSelector.value())
+
+    def fr_fourier(self):
+        part_of_duration = self.momentSelector.value()
+        process.fr_fourier(part_of_duration/10000)
 
 
 def record(duration, print_progress):

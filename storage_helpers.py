@@ -84,14 +84,14 @@ class SpectrumData:
 
         self._sensitivity_smoothed = smooth(self._sensitivity, 20)
 
-        fig = plt.figure(figsize=[4, 4])
-        ax = fig.add_subplot(111)
-        ax.set_yscale('log', basey=10)
-
-        ax.plot(np.arange(0, 4097, 16), self._sensitivity)
-        ax.plot(np.arange(0, 4097, 16), self._sensitivity_smoothed, 'r', lw=2)
-
-        fig.show()
+        # fig = plt.figure(figsize=[4, 4])
+        # ax = fig.add_subplot(111)
+        # ax.set_yscale('log', basey=10)
+        #
+        # ax.plot(np.arange(0, 4097, 16), self._sensitivity)
+        # ax.plot(np.arange(0, 4097, 16), self._sensitivity_smoothed, 'r', lw=2)
+        #
+        # fig.show()
 
     def set(self, data, spec_extent):
         self._raw_spectrum = data
@@ -111,6 +111,10 @@ class SpectrumData:
 
     def get_extent(self):
         return self._spec_extent
+
+    def get_intense_processed(self):
+        spectr = self.get()
+        return np.sum(spectr, 0)
 
     def set_use_raw(self):
         self._use_mode = self.Mode.RAW

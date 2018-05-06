@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1134</width>
-    <height>645</height>
+    <width>1113</width>
+    <height>707</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -445,9 +445,9 @@
     <property name="geometry">
      <rect>
       <x>0</x>
-      <y>1</y>
-      <width>711</width>
-      <height>641</height>
+      <y>0</y>
+      <width>691</width>
+      <height>701</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="mainLayout">
@@ -715,38 +715,17 @@
          </property>
         </spacer>
        </item>
+       <item>
+        <widget class="QPushButton" name="btnFrFourier">
+         <property name="text">
+          <string>Фурье частоты!</string>
+         </property>
+        </widget>
+       </item>
       </layout>
      </item>
      <item>
-      <widget class="QLabel" name="lblRawAmplitude">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>16777215</width>
-         <height>16777215</height>
-        </size>
-       </property>
-       <property name="frameShape">
-        <enum>QFrame::Box</enum>
-       </property>
-       <property name="frameShadow">
-        <enum>QFrame::Plain</enum>
-       </property>
-       <property name="lineWidth">
-        <number>1</number>
-       </property>
-       <property name="text">
-        <string>Raw Sound Amplitude</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <layout class="QHBoxLayout" name="horizontalLayout">
+      <layout class="QHBoxLayout" name="selectorLayout">
        <property name="sizeConstraint">
         <enum>QLayout::SetFixedSize</enum>
        </property>
@@ -814,6 +793,34 @@
       </layout>
      </item>
      <item>
+      <widget class="QLabel" name="lblRawAmplitude">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>60</height>
+        </size>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::Box</enum>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Plain</enum>
+       </property>
+       <property name="lineWidth">
+        <number>1</number>
+       </property>
+       <property name="text">
+        <string>Raw Sound Amplitude</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QLabel" name="lblRawSpectrum">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -824,7 +831,7 @@
        <property name="maximumSize">
         <size>
          <width>16777215</width>
-         <height>16777215</height>
+         <height>300</height>
         </size>
        </property>
        <property name="frameShape">
@@ -846,7 +853,7 @@
        <property name="maximumSize">
         <size>
          <width>16777215</width>
-         <height>16777215</height>
+         <height>200</height>
         </size>
        </property>
        <property name="frameShape">
@@ -857,13 +864,41 @@
        </property>
       </widget>
      </item>
+     <item>
+      <widget class="QLabel" name="lblAmplitude">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>60</height>
+        </size>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::Box</enum>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Plain</enum>
+       </property>
+       <property name="lineWidth">
+        <number>1</number>
+       </property>
+       <property name="text">
+        <string>Sound Amplitude</string>
+       </property>
+      </widget>
+     </item>
     </layout>
    </widget>
    <widget class="QLabel" name="lblMomentumSpectrum">
     <property name="geometry">
      <rect>
-      <x>720</x>
-      <y>237</y>
+      <x>700</x>
+      <y>300</y>
       <width>399</width>
       <height>400</height>
      </rect>
