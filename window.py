@@ -1,13 +1,15 @@
 import os
 import sys
-
-import pyaudio
 import time
-import wave
+
 from PyQt5 import uic
 from PyQt5.QtWidgets import QMainWindow, QApplication
+from matplotlib.backends.backend_qt5agg import (
+    FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
+from matplotlib.figure import Figure
 
 import process
+import sound_operations
 
 qtCreatorFile = "./mainwindow.ui"  # Путь к UI файлу
 
@@ -19,6 +21,7 @@ class MyApp(QMainWindow, Ui_MainWindow):
         QMainWindow.__init__(self)
         Ui_MainWindow.__init__(self)
         self.setupUi(self)
+        self.plot_axs = self.init_plots()
 
         self.btnRecord.clicked.connect(self.btn_record_clicked)
         self.btnPlay.clicked.connect(self.btn_play_clicked)
@@ -72,8 +75,6 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.btnPlay.setEnabled(True)
         self.momentSelector.setEnabled(True)
 
-        self.lblRawAmplitude.setPixmap(process.plot_intense())
-
         process.calc_spectrum()
         self.refresh_plots()
 
@@ -87,12 +88,12 @@ class MyApp(QMainWindow, Ui_MainWindow):
             self.repaint()
             time.sleep(0.5)
 
-        record(self.boxDuration.value(), self.print_progress)
+        sound_operations.record(self.boxDuration.value(), self.print_progress)
         self.btnRecord.setText('Запись')
         self.toggle_audio_loaded_state()
 
     def btn_play_clicked(self):
-        play()
+        sound_operations.play()
 
     def btn_save_clicked(self):
         if not self.lineFilename.isVisible():
@@ -101,7 +102,7 @@ class MyApp(QMainWindow, Ui_MainWindow):
             filename = self.lineFilename.text()
             if not filename.endswith('.wav'):
                 filename += '.wav'
-            save(filename)
+                sound_operations.save(filename)
             self.lineFilename.clear()
             self.lineFilename.hide()
 
@@ -109,7 +110,7 @@ class MyApp(QMainWindow, Ui_MainWindow):
         folder = self.boxFolder.currentText()
         file = self.boxFile.currentText()
         if file != '':
-            open_(folder + '/' + file)
+            sound_operations.open_(folder + '/' + file)
 
         self.toggle_audio_loaded_state()
 
@@ -128,104 +129,35 @@ class MyApp(QMainWindow, Ui_MainWindow):
         self.lblMomentumSpectrum.setPixmap(process.get_momentum_spectrum(moment_index))
         self.lblMomentum.setText("{0:.2f}".format(moment_index * process.audio_data._duration))
 
+    def init_plots(self):
+        plots = FigureCanvas(Figure(figsize=(7, 7)))
+        self.plotsLayout.addWidget(plots)
+        self.plotsLayout.addWidget(NavigationToolbar(plots, self))
+
+        fig = plots.figure
+        axs = fig\
+            .subplots(3, 1, sharex='col', gridspec_kw={'height_ratios': [1, 3, 2]})
+        axs[0].set_ylim(-1, 1)
+
+        for ax in axs:
+            ax.grid()
+
+        return axs
+
     def refresh_plots(self):
-        spec, spec_details = process.plot_spectrum()
+        for ax in self.plot_axs:
+            ax.clear()
 
-        self.lblRawSpectrum.setPixmap(spec)
-        self.lblRawSpectrum.resize(spec.size())
-
-        self.lblRawSpectrum_details.setPixmap(spec_details)
-        self.lblRawSpectrum_details.resize(spec_details.size())
-
-        self.lblAmplitude.setPixmap(process.plot_intense_proc())
-
+        process.plot_intense(self.plot_axs[0])
+        process.plot_spectrum(self.plot_axs[1], self.plot_axs[2])
         self.refresh_momentum_spectrum(self.momentSelector.value())
+
+        self.plot_axs[0].figure.canvas.draw()
+
 
     def fr_fourier(self):
         part_of_duration = self.momentSelector.value()
         process.fr_fourier(part_of_duration/10000)
-
-
-def record(duration, print_progress):
-    ad = process.audio_data
-    p = pyaudio.PyAudio()
-
-    stream = p.open(format=ad.format(),
-                    channels=ad.channels(),
-                    rate=ad.rate(),
-                    input=True,
-                    frames_per_buffer=ad.chunk())
-
-    frames = []
-
-    fps = ad.rate() / ad.chunk()
-    n_frames = int(fps * duration)
-    remainder = ad.rate() * duration - ad.chunk() * n_frames
-
-    for i in range(0, n_frames):
-        data = stream.read(ad.chunk())
-        frames.append(data)
-
-        sec = int(i / fps)
-        print_progress(sec, duration)
-
-    data = stream.read(remainder)
-    frames.append(data)
-
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
-
-    process.audio_data.set_data(frames)
-
-
-def save(filename):
-    ad = process.audio_data
-    frames = ad._frames
-
-    wf = wave.open(filename, 'wb')
-    wf.setnchannels(ad.channels())
-    wf.setsampwidth(pyaudio.PyAudio()
-                    .get_sample_size(ad.format()))
-    wf.setframerate(ad.rate())
-    wf.writeframes(b''.join(frames))
-    wf.close()
-
-
-def open_(filename):
-    file = wave.open(filename, 'rb')
-    n_frames = file.getnframes()
-
-    parts, remainder = int(n_frames / 1024), n_frames % 1024
-    frames = []
-    for i in range(0, parts):
-        data = file.readframes(1024)
-        frames.append(data)
-    if remainder != 0:
-        data = file.readframes(remainder)
-        frames.append(data)
-    file.close()
-
-    process.audio_data.reset_params(channels=file.getnchannels(), rate=file.getframerate())
-    process.audio_data.set_data(frames)
-
-
-def play():
-    ad = process.audio_data
-    p = pyaudio.PyAudio()
-
-    stream = p.open(format=ad.format(),
-                    channels=ad.channels(),
-                    rate=ad.rate(),
-                    output=True,
-                    frames_per_buffer=ad.chunk())
-
-    data = process.audio_data.intensities()
-    stream.write(data, data.size)
-
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
 
 
 if __name__ == "__main__":

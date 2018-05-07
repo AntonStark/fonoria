@@ -15,27 +15,15 @@ spectrum_data = SpectrumData()
 mpl.rcParams['figure.subplot.left'] = 0.065
 mpl.rcParams['figure.subplot.right'] = 0.935
 mpl.rcParams['figure.subplot.top'] = 0.94
+mpl.rcParams['axes.xmargin'] = 0
 
 
-def plot_intense():
+def plot_intense(ax):
     intense = audio_data.intensities()
     norm = intense / np.linalg.norm(intense, np.inf)
 
-    fig = plt.figure(figsize=[7, 0.6])
-    ax = fig.add_subplot(111)
-
     ax.plot(audio_data._timeline, norm)
-    ax.margins(0, 0.1)
-    ax.set_ylim(-1, 1)
-
-    canvas = fig.canvas
-    canvas.draw()
-    buf = canvas.tostring_rgb()
-    plt.close(fig)
-
-    (width, height) = canvas.get_width_height()
-    im = QImage(buf, width, height, QImage.Format_RGB888)
-    return QPixmap(im)
+    ax.grid()
 
 
 def calc_spectrum():
@@ -55,35 +43,18 @@ def calc_spectrum():
     print('FFT ~ {}мс.'.format(calc_time.microseconds / 1000))
 
 
-def plot_spectrum():
+def plot_spectrum(ax1, ax2):
     spectrum, spec_extent = spectrum_data.get(), spectrum_data.get_extent()
     z = 10. * np.log10(spectrum)
     z = np.flipud(z)
 
-    fig = plt.figure(figsize=[7, 3])
-    ax = fig.add_subplot(111)
-    canvas = fig.canvas
-
-    plt.imshow(z, plt.magma(), extent=spec_extent, aspect='auto')
-
-    canvas.draw()
-    buf = canvas.tostring_rgb()
-    (width, height) = canvas.get_width_height()
-    im1 = QImage(buf, width, height, QImage.Format_RGB888)
+    ax1.imshow(z, plt.magma(), extent=spec_extent, aspect='auto')
 
     time, result = fund_freq_by_fourier()
-    plt.plot(time, result, color='g')
 
-    fig.set_size_inches(7, 1.2)
-    ax.set_ylim(bottom=0, top=512)
-
-    canvas.draw()
-    buf = canvas.tostring_rgb()
-    (width, height) = canvas.get_width_height()
-    im2 = QImage(buf, width, height, QImage.Format_RGB888)
-
-    plt.close(fig)
-    return QPixmap(im1), QPixmap(im2)
+    ax2.imshow(z, plt.magma(), extent=spec_extent, aspect='auto')
+    ax2.plot(time, result, color='g')
+    ax2.set_ylim(bottom=0, top=512)
 
 
 def get_momentum_spectrum(part_of_duration):
@@ -114,26 +85,26 @@ def get_momentum_spectrum(part_of_duration):
     im = QImage(buf, width, height, QImage.Format_RGB888)
     return QPixmap(im)
 
-def plot_intense_proc():
-    intense = spectrum_data.get_intense_processed()
-
-    time = np.arange(0, audio_data._duration, 0.016)
-
-    fig = plt.figure(figsize=[7, 0.6])
-    ax = fig.add_subplot(111)
-
-    ax.plot(time, intense)
-    ax.margins(0, 0.1)
-    # ax.set_ylim(-1, 1)
-
-    canvas = fig.canvas
-    canvas.draw()
-    buf = canvas.tostring_rgb()
-    plt.close(fig)
-
-    (width, height) = canvas.get_width_height()
-    im = QImage(buf, width, height, QImage.Format_RGB888)
-    return QPixmap(im)
+# def plot_intense_proc():
+#     intense = spectrum_data.get_intense_processed()
+#
+#     time = np.arange(0, audio_data._duration, 0.016)
+#
+#     fig = plt.figure(figsize=[7, 0.6])
+#     ax = fig.add_subplot(111)
+#
+#     ax.plot(time, intense)
+#     ax.margins(0, 0.1)
+#     # ax.set_ylim(-1, 1)
+#
+#     canvas = fig.canvas
+#     canvas.draw()
+#     buf = canvas.tostring_rgb()
+#     plt.close(fig)
+#
+#     (width, height) = canvas.get_width_height()
+#     im = QImage(buf, width, height, QImage.Format_RGB888)
+#     return QPixmap(im)
 
 
 def fr_fourier(part_of_duration):
