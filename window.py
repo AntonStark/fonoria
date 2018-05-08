@@ -7,12 +7,12 @@ from PyQt5.QtWidgets import QMainWindow, QApplication
 from matplotlib.backends.backend_qt5agg import (
     FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 
 import process
 import sound_operations
 
 qtCreatorFile = "./mainwindow.ui"  # Путь к UI файлу
-
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
 
 
