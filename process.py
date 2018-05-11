@@ -4,26 +4,14 @@ import matplotlib as mpl
 import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
 import numpy as np
-from PyQt5.QtGui import QImage, QPixmap
 import scipy.fftpack
 
-from storage_helpers import AudioData, SpectrumData
-
-audio_data = AudioData()
-spectrum_data = SpectrumData()
+from storage_helpers import audio_data, spectrum_data
 
 mpl.rcParams['figure.subplot.left'] = 0.065
 mpl.rcParams['figure.subplot.right'] = 0.935
 mpl.rcParams['figure.subplot.top'] = 0.94
 mpl.rcParams['axes.xmargin'] = 0
-
-
-def plot_intense(ax):
-    intense = audio_data.intensities()
-    norm = intense / np.linalg.norm(intense, np.inf)
-
-    ax.plot(audio_data._timeline, norm)
-    ax.grid()
 
 
 def calc_spectrum():
@@ -42,6 +30,16 @@ def calc_spectrum():
     spectrum_data.set(spectr, spec_extent)
     print('FFT ~ {}мс.'.format(calc_time.microseconds / 1000))
 
+    fund_freq_by_fourier()
+
+def plot_intense(ax):
+    intense = audio_data.intensities()
+    norm = intense / np.linalg.norm(intense, np.inf)
+
+    ax.plot(audio_data._timeline, norm)
+    ax.grid()
+    ax.figure.canvas.draw()
+
 
 def plot_spectrum(ax1, ax2):
     spectrum, spec_extent = spectrum_data.get(), spectrum_data.get_extent()
@@ -49,78 +47,34 @@ def plot_spectrum(ax1, ax2):
     z = np.flipud(z)
 
     ax1.imshow(z, plt.magma(), extent=spec_extent, aspect='auto')
-
-    time, result = fund_freq_by_fourier()
+    ax1.figure.canvas.draw()
 
     ax2.imshow(z, plt.magma(), extent=spec_extent, aspect='auto')
     ax2.plot(time, result, color='g')
     ax2.set_ylim(bottom=0, top=512)
+    ax2.figure.canvas.draw()
 
 
-def get_momentum_spectrum(part_of_duration):
-    spectrum = spectrum_data.get()
-    n_frame = int(part_of_duration * spectrum.shape[1])
-
-    intensity = spectrum[:, n_frame]
-
-    fig = plt.figure(figsize=[4, 4])
-    ax = fig.add_subplot(111)
+def plot_momentum_spectrum(ax, part_of_duration):
+    intensity = spectrum_data.get_moment_spectr(part_of_duration)
     ax.plot(np.linspace(0, 4096, intensity.size), intensity)
     ax.set_yscale('log', basey=10)
     ax.grid()
-
-    # freqs, fund = analyse_spectrum(intensity)
-    # for x in freqs:
-    #     ax.axvline(x, color='green')
-    # print(fund)
-
-    # analyse_bands(intensity, 16, 80, 300, 100)
-
-    canvas = fig.canvas
-    canvas.draw()
-    buf = canvas.tostring_rgb()
-    (width, height) = canvas.get_width_height()
-    plt.close(fig)
-
-    im = QImage(buf, width, height, QImage.Format_RGB888)
-    return QPixmap(im)
-
-# def plot_intense_proc():
-#     intense = spectrum_data.get_intense_processed()
-#
-#     time = np.arange(0, audio_data._duration, 0.016)
-#
-#     fig = plt.figure(figsize=[7, 0.6])
-#     ax = fig.add_subplot(111)
-#
-#     ax.plot(time, intense)
-#     ax.margins(0, 0.1)
-#     # ax.set_ylim(-1, 1)
-#
-#     canvas = fig.canvas
-#     canvas.draw()
-#     buf = canvas.tostring_rgb()
-#     plt.close(fig)
-#
-#     (width, height) = canvas.get_width_height()
-#     im = QImage(buf, width, height, QImage.Format_RGB888)
-#     return QPixmap(im)
+    ax.figure.canvas.draw()
 
 
 def fr_fourier(part_of_duration):
-    spectrum = spectrum_data.get()
-    n_frame = int(part_of_duration * spectrum.shape[1])
-
-    intensity = spectrum[:, n_frame]
+    intensity = spectrum_data.get_moment_spectr(part_of_duration)
     four = scipy.fftpack.fft(intensity)
     fig, ax = plt.subplots()
     ax.plot(np.abs(four))
     plt.show()
 
+
 def fund_freq_by_fourier():
     freq_high, freq_low = 8, 40
     spectrum = spectrum_data.get()
-    result = np.array([])
+    result = []
     for i in range(0, spectrum.shape[1]):
         moment_spectrum = spectrum[:, i]
         freq_fourier = np.abs(scipy.fftpack.fft(moment_spectrum))
@@ -133,10 +87,31 @@ def fund_freq_by_fourier():
         max2 = intrest[arg_max2]
         # print(abs(arg_max2-arg_max1), abs(max2-max1)/max2)
         if arg_max1 != 0:
-            result = np.append(result, arg_max1 + freq_high)
+            result.append(arg_max1 + freq_high)
         else:
-            result = np.append(result, 0)
+            result.append(0)
 
-    result = 4096 / result
+    result = np.array(result)
+    global time, result
+    result = np.array(4096 / result)
     time = np.arange(0, spectrum.shape[1]*0.016, 0.016)
-    return time, result
+
+
+def print_tones(part_of_duration):
+    intensity = spectrum_data.get_moment_spectr(part_of_duration)
+    global result
+    fund_fr = result[int(part_of_duration * result.shape[0])]
+    print('f=', fund_fr, end='\t')
+
+    def pick_nth_tone_magnitude(n):
+        nonlocal fund_fr
+        pick = [int(abs(fr - n*fund_fr) < fund_fr/4) for fr in range(0, 4096+1, 16)]
+        nonlocal intensity
+        return np.math.log10(sum([p*i for p, i in zip(pick, intensity)]))
+
+    tones = [pick_nth_tone_magnitude(n) for n in range(0, 20)]
+    tones_rel = tones / np.min(tones)
+    # plt.plot(tones_rel, 'r.')
+    # plt.show()
+    print(['{:.2f}'.format(t) for t in tones_rel])
+

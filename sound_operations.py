@@ -1,10 +1,11 @@
 import wave
 import pyaudio
-import process
+
+from storage_helpers import audio_data
 
 
 def record(duration, print_progress):
-    ad = process.audio_data
+    ad = audio_data
     p = pyaudio.PyAudio()
 
     stream = p.open(format=ad.format(),
@@ -24,7 +25,7 @@ def record(duration, print_progress):
         frames.append(data)
 
         sec = int(i / fps)
-        print_progress(sec, duration)
+        print_progress('{}/{}'.format(sec, duration))
 
     data = stream.read(remainder)
     frames.append(data)
@@ -33,11 +34,11 @@ def record(duration, print_progress):
     stream.close()
     p.terminate()
 
-    process.audio_data.set_data(frames)
+    audio_data.set_data(frames)
 
 
 def save(filename):
-    ad = process.audio_data
+    ad = audio_data
     frames = ad._frames
 
     wf = wave.open(filename, 'wb')
@@ -63,12 +64,12 @@ def open_(filename):
         frames.append(data)
     file.close()
 
-    process.audio_data.reset_params(channels=file.getnchannels(), rate=file.getframerate())
-    process.audio_data.set_data(frames)
+    audio_data.reset_params(channels=file.getnchannels(), rate=file.getframerate())
+    audio_data.set_data(frames)
 
 
 def play():
-    ad = process.audio_data
+    ad = audio_data
     p = pyaudio.PyAudio()
 
     stream = p.open(format=ad.format(),
@@ -77,7 +78,7 @@ def play():
                     output=True,
                     frames_per_buffer=ad.chunk())
 
-    data = process.audio_data.intensities()
+    data = audio_data.intensities()
     stream.write(data, data.size)
 
     stream.stop_stream()

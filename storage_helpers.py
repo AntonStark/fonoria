@@ -57,6 +57,9 @@ class AudioData:
         return self._intensities
 
 
+audio_data = AudioData()
+
+
 class SpectrumData:
     class Mode(Enum):
         RAW = 0
@@ -109,6 +112,11 @@ class SpectrumData:
         elif self._use_mode == self.Mode.SUBS_SMOOTHED:
             return self._subs_smoothed
 
+    def get_moment_spectr(self, part_of_duration):
+        spectrum = spectrum_data.get()
+        n_frame = int(part_of_duration * spectrum.shape[1])
+        return spectrum[:, n_frame]
+
     def get_extent(self):
         return self._spec_extent
 
@@ -124,3 +132,6 @@ class SpectrumData:
 
     def set_use_subs_smoothed(self):
         self._use_mode = self.Mode.SUBS_SMOOTHED
+
+
+spectrum_data = SpectrumData()
